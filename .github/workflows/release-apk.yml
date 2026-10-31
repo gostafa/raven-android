@@ -38,7 +38,7 @@ jobs:
         uses: android-actions/setup-android@v4
 
       - name: Install Android SDK platform
-        run: sdkmanager 'platforms;android-37'
+        run: sdkmanager 'platforms;android-36'
 
       # Debug builds are installable without a private release signing key.
       - name: Build APK
