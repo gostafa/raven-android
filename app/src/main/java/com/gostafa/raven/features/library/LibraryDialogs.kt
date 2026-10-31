@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -74,6 +75,7 @@ internal fun FolderEditorDialog(
     var failed by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     AlertDialog(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
         onDismissRequest = { if (!saving) onDismiss() },
         title = { Text(stringResource(if (folder == null) R.string.add_folder else R.string.edit_folder)) },
         text = {
@@ -134,6 +136,7 @@ internal fun DeleteConfirmation(
     var failed by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     AlertDialog(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
         onDismissRequest = { if (!deleting) onDismiss() },
         title = { Text(stringResource(R.string.delete)) },
         text = {
@@ -173,6 +176,7 @@ internal fun SettingsDialog(viewModel: LibraryViewModel, onDismiss: () -> Unit) 
     val language by viewModel.settings.language.collectAsStateWithLifecycle(initialValue = "system")
     val choices = listOf("system" to R.string.system_language, "en" to R.string.english, "ar" to R.string.arabic)
     AlertDialog(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings)) },
         text = {
@@ -263,9 +267,10 @@ internal fun CardEditorDialog(
     val context = LocalContext.current
     val valid = initialized && !loadFailed && parts.isNotEmpty() && parts.all { it.type != PartType.TEXT || it.text.isNotBlank() }
     AlertDialog(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
         onDismissRequest = { if (!saving) onDismiss() },
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-        modifier = Modifier.fillMaxWidth(0.94f),
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        modifier = Modifier.fillMaxWidth(0.94f).safeDrawingPadding(),
         title = { Text(stringResource(if (cardId == null) R.string.new_card else R.string.edit_card)) },
         text = {
             Column(modifier = Modifier.heightIn(max = 560.dp)) {

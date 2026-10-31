@@ -59,7 +59,10 @@
     <string name="system_language">System language</string>
     <string name="english">English</string>
     <string name="arabic">العربية</string>
-    <string name="part_count">%1$d parts</string>
+    <plurals name="part_count">
+        <item quantity="one">%1$d part</item>
+        <item quantity="other">%1$d parts</item>
+    </plurals>
     <string name="due_count">%1$d due</string>
     <string name="session_progress">%1$d of %2$d</string>
     <string name="review_complete">Review complete</string>

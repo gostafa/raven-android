@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -14,7 +15,7 @@ interface FolderDao {
     @Query("SELECT * FROM folders WHERE id = :id LIMIT 1")
     suspend fun get(id: String): FolderEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsert(folder: FolderEntity)
 
     @Query("DELETE FROM folders WHERE id = :id")

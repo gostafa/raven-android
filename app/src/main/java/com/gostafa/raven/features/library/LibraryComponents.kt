@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -101,7 +102,11 @@ internal fun OverflowMenu(label: String, onEdit: (() -> Unit)? = null, onDelete:
         IconButton(onClick = { expanded = true }) {
             Icon(Icons.Default.MoreVert, contentDescription = label)
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
             if (onEdit != null) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.edit)) },
@@ -128,7 +133,10 @@ internal fun CardRow(
         onClick = onEdit,
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Column(Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 8.dp, bottom = 8.dp)) {
@@ -151,7 +159,7 @@ internal fun CardRow(
             )
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
-                    Text(stringResource(R.string.part_count, card.partCount), style = MaterialTheme.typography.bodySmall)
+                    Text(pluralStringResource(R.plurals.part_count, card.partCount, card.partCount), style = MaterialTheme.typography.bodySmall)
                     Text(
                         stringResource(R.string.due_count, card.dueCount),
                         style = MaterialTheme.typography.labelSmall,
