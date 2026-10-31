@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Raven</string>
+    <string name="app_name">raven</string>
     <string name="library">Library</string>
     <string name="folders">Folders</string>
     <string name="folder">Folder</string>
