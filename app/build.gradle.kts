@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.gostafa.raven"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.gostafa.raven"
