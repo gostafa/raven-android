@@ -23,13 +23,13 @@ interface FolderDao {
 
 @Dao
 interface CardDao {
-    @Query("SELECT c.id, c.folderId, c.updatedAt, COALESCE((SELECT p.text FROM content_parts p WHERE p.cardId = c.id ORDER BY p.orderIndex LIMIT 1), '') AS preview, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id) AS partCount, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount FROM cards c WHERE c.folderId = :folderId ORDER BY c.updatedAt DESC")
+    @Query("SELECT c.id, c.folderId, c.updatedAt, COALESCE((SELECT p.text FROM content_parts p WHERE p.cardId = c.id AND p.type = 'TEXT' AND TRIM(p.text) != '' ORDER BY p.orderIndex LIMIT 1), '') AS preview, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id) AS partCount, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount FROM cards c WHERE c.folderId = :folderId ORDER BY c.updatedAt DESC")
     fun observeInFolder(folderId: String, now: Long): Flow<List<CardSummary>>
 
     @Query("SELECT * FROM cards WHERE id = :id LIMIT 1")
     suspend fun get(id: String): CardEntity?
 
-    @Query("SELECT c.id, c.folderId, c.updatedAt, COALESCE((SELECT p.text FROM content_parts p WHERE p.cardId = c.id ORDER BY p.orderIndex LIMIT 1), '') AS preview, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id) AS partCount, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount FROM cards c JOIN folders f ON f.id = c.folderId LEFT JOIN content_parts p ON p.cardId = c.id WHERE lower(f.name) LIKE '%' || lower(:query) || '%' OR lower(p.text) LIKE '%' || lower(:query) || '%' GROUP BY c.id ORDER BY c.updatedAt DESC")
+    @Query("SELECT c.id, c.folderId, c.updatedAt, COALESCE((SELECT p.text FROM content_parts p WHERE p.cardId = c.id AND p.type = 'TEXT' AND TRIM(p.text) != '' ORDER BY p.orderIndex LIMIT 1), '') AS preview, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id) AS partCount, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount FROM cards c JOIN folders f ON f.id = c.folderId LEFT JOIN content_parts p ON p.cardId = c.id WHERE lower(f.name) LIKE '%' || lower(:query) || '%' OR lower(p.text) LIKE '%' || lower(:query) || '%' GROUP BY c.id ORDER BY c.updatedAt DESC")
     fun search(query: String, now: Long): Flow<List<CardSummary>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

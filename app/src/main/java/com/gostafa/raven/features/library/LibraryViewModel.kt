@@ -13,14 +13,25 @@ import com.gostafa.raven.core.model.PartType
 import com.gostafa.raven.core.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+data class LibraryData<T>(val value: T? = null, val failed: Boolean = false)
+
+private fun <T> Flow<T>.asLibraryData(): Flow<LibraryData<T>> =
+    map { LibraryData(value = it) }
+        .onStart { emit(LibraryData()) }
+        .catch { error ->
+            if (error is CancellationException) throw error
+            emit(LibraryData(failed = true))
+        }
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
@@ -28,52 +39,26 @@ class LibraryViewModel @Inject constructor(
     private val mediaStorage: MediaStorage,
     val settings: SettingsRepository,
 ) : ViewModel() {
-    val folders: StateFlow<List<FolderSummary>> = repository.observeFolders()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val folders: StateFlow<LibraryData<List<FolderSummary>>> = observeFolders()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryData())
 
-    private val _selectedFolderId = MutableStateFlow<String?>(null)
-    val selectedFolderId = _selectedFolderId.asStateFlow()
+    fun observeFolders(): Flow<LibraryData<List<FolderSummary>>> = repository.observeFolders().asLibraryData()
 
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery = _searchQuery.asStateFlow()
+    fun observeCards(folderId: String): Flow<LibraryData<List<CardSummary>>> =
+        repository.observeCards(folderId).asLibraryData()
 
-    val cards: StateFlow<List<CardSummary>> = _selectedFolderId.flatMapLatest { id ->
-        if (id == null) flowOf(emptyList()) else repository.observeCards(id)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    fun searchCards(query: String): Flow<LibraryData<List<CardSummary>>> =
+        repository.searchCards(query.trim()).asLibraryData()
 
-    val searchResults: StateFlow<List<CardSummary>> = _searchQuery.flatMapLatest { query ->
-        if (query.isBlank()) flowOf(emptyList()) else repository.searchCards(query.trim())
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    suspend fun saveFolder(id: String?, name: String, description: String): String =
+        repository.saveFolder(id, name, description)
 
-    init {
-        viewModelScope.launch {
-            folders.collect { values ->
-                if (_selectedFolderId.value == null && values.isNotEmpty()) _selectedFolderId.value = values.first().id
-            }
-        }
-    }
+    suspend fun deleteFolder(id: String) = repository.deleteFolder(id)
 
-    fun selectFolder(id: String) { _selectedFolderId.value = id }
-    fun search(query: String) { _searchQuery.value = query }
+    suspend fun saveCard(folderId: String, id: String?, drafts: List<PartDraft>) =
+        repository.saveCard(folderId, id, drafts)
 
-    fun saveFolder(id: String?, name: String, description: String) {
-        viewModelScope.launch { repository.saveFolder(id, name, description) }
-    }
-
-    fun deleteFolder(id: String) {
-        viewModelScope.launch {
-            repository.deleteFolder(id)
-            if (_selectedFolderId.value == id) _selectedFolderId.value = null
-        }
-    }
-
-    fun saveCard(folderId: String, id: String?, drafts: List<PartDraft>) {
-        viewModelScope.launch { repository.saveCard(folderId, id, drafts) }
-    }
-
-    fun deleteCard(id: String) {
-        viewModelScope.launch { repository.deleteCard(id) }
-    }
+    suspend fun deleteCard(id: String) = repository.deleteCard(id)
 
     fun setLanguage(language: String) {
         viewModelScope.launch { settings.setLanguage(language) }
@@ -83,7 +68,7 @@ class LibraryViewModel @Inject constructor(
 
     fun importMedia(uri: Uri, type: PartType, onImported: (PartDraft) -> Unit, onFailure: () -> Unit) {
         viewModelScope.launch {
-            runCatching {
+            try {
                 val mime = when (type) {
                     PartType.IMAGE -> "image/*"
                     PartType.AUDIO -> "audio/*"
@@ -92,8 +77,11 @@ class LibraryViewModel @Inject constructor(
                 }
                 val stored = mediaStorage.import(uri, mime)
                 repository.saveMedia(stored.relativePath, stored.mimeType, stored.byteSize)
-                PartDraft(type = type, mediaPath = stored.relativePath, mimeType = stored.mimeType)
-            }.onSuccess(onImported).onFailure { onFailure() }
+                onImported(PartDraft(type = type, mediaPath = stored.relativePath, mimeType = stored.mimeType))
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                onFailure()
+            }
         }
     }
 }

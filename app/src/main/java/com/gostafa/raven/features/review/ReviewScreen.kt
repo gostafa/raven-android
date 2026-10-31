@@ -91,7 +91,7 @@ fun ReviewScreen(
                                 stringResource(R.string.reviewed_items, state.index),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            Button(onClick = onExit) { Text(stringResource(R.string.return_to_library)) }
+                            Button(onClick = onExit) { Text(stringResource(R.string.back)) }
                         }
                     }
                 }

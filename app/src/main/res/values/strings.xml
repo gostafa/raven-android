@@ -2,6 +2,24 @@
     <string name="app_name">Raven</string>
     <string name="library">Library</string>
     <string name="folders">Folders</string>
+    <string name="folder">Folder</string>
+    <string name="back">Back</string>
+    <string name="folder_actions">Actions for %1$s</string>
+    <string name="card_actions">Card actions</string>
+    <plurals name="card_count">
+        <item quantity="one">%1$d card</item>
+        <item quantity="other">%1$d cards</item>
+    </plurals>
+    <string name="media_card">Media card</string>
+    <string name="search_title">Search</string>
+    <string name="clear_search">Clear search</string>
+    <string name="search_hint">Find a card by its text or folder name</string>
+    <string name="no_search_results">No matching cards found</string>
+    <string name="folder_unavailable">This folder is no longer available</string>
+    <string name="card_unavailable">This card could not be loaded</string>
+    <string name="load_failed">Could not load your library. Please try opening this screen again.</string>
+    <string name="save_failed">Could not save. Your changes are still here. Please try again.</string>
+    <string name="delete_failed">Could not delete. Please try again.</string>
     <string name="cards">Cards</string>
     <string name="add_folder">New folder</string>
     <string name="edit_folder">Edit folder</string>

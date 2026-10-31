@@ -32,7 +32,7 @@ interface RavenRepository {
     fun observeFolders(): Flow<List<FolderSummary>>
     fun observeCards(folderId: String): Flow<List<CardSummary>>
     fun searchCards(query: String): Flow<List<CardSummary>>
-    suspend fun saveFolder(id: String?, name: String, description: String)
+    suspend fun saveFolder(id: String?, name: String, description: String): String
     suspend fun deleteFolder(id: String)
     suspend fun saveCard(folderId: String, cardId: String?, drafts: List<PartDraft>)
     suspend fun deleteCard(id: String)
@@ -58,12 +58,13 @@ class RoomRavenRepository @Inject constructor(
     override fun observeCards(folderId: String) = cards.observeInFolder(folderId, System.currentTimeMillis())
     override fun searchCards(query: String) = cards.search(query, System.currentTimeMillis())
 
-    override suspend fun saveFolder(id: String?, name: String, description: String) {
+    override suspend fun saveFolder(id: String?, name: String, description: String): String {
         val now = System.currentTimeMillis()
         val previous = if (id == null) null else folders.get(id)
+        val savedId = previous?.id ?: UUID.randomUUID().toString()
         folders.upsert(
             FolderEntity(
-                id = previous?.id ?: UUID.randomUUID().toString(),
+                id = savedId,
                 name = name.trim(),
                 description = description.trim(),
                 tagsJson = previous?.tagsJson ?: "[]",
@@ -71,6 +72,7 @@ class RoomRavenRepository @Inject constructor(
                 updatedAt = now,
             ),
         )
+        return savedId
     }
 
     override suspend fun deleteFolder(id: String) {
