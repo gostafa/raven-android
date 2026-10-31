@@ -6,10 +6,11 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
+import com.gostafa.raven.core.model.PartRecall
 
 @Dao
 interface FolderDao {
-    @Query("SELECT f.id, f.name, f.description, (SELECT COUNT(*) FROM cards c WHERE c.folderId = f.id) AS cardCount, (SELECT COUNT(*) FROM content_parts p JOIN cards c ON c.id = p.cardId WHERE c.folderId = f.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount, f.updatedAt FROM folders f ORDER BY f.updatedAt DESC")
+    @Query("SELECT f.id, f.name, f.description, f.tagsJson, 0 AS completedCardCount, (SELECT COUNT(*) FROM cards c WHERE c.folderId = f.id) AS cardCount, (SELECT COUNT(*) FROM content_parts p JOIN cards c ON c.id = p.cardId WHERE c.folderId = f.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount, f.updatedAt FROM folders f ORDER BY f.updatedAt DESC")
     fun observeSummaries(now: Long): Flow<List<FolderSummary>>
 
     @Query("SELECT * FROM folders WHERE id = :id LIMIT 1")
@@ -24,16 +25,16 @@ interface FolderDao {
 
 @Dao
 interface CardDao {
-    @Query("SELECT c.id, c.folderId, c.updatedAt, COALESCE((SELECT p.text FROM content_parts p WHERE p.cardId = c.id AND p.type = 'TEXT' AND TRIM(p.text) != '' ORDER BY p.orderIndex LIMIT 1), '') AS preview, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id) AS partCount, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount FROM cards c WHERE c.folderId = :folderId ORDER BY c.updatedAt DESC")
+    @Query("SELECT c.id, c.folderId, c.updatedAt, 0 AS recallPercent, COALESCE((SELECT p.text FROM content_parts p WHERE p.cardId = c.id AND p.type = 'TEXT' AND TRIM(p.text) != '' ORDER BY p.orderIndex LIMIT 1), '') AS preview, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id) AS partCount, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount FROM cards c WHERE c.folderId = :folderId ORDER BY c.updatedAt DESC")
     fun observeInFolder(folderId: String, now: Long): Flow<List<CardSummary>>
 
     @Query("SELECT * FROM cards WHERE id = :id LIMIT 1")
     suspend fun get(id: String): CardEntity?
 
-    @Query("SELECT c.id, c.folderId, c.updatedAt, COALESCE((SELECT p.text FROM content_parts p WHERE p.cardId = c.id AND p.type = 'TEXT' AND TRIM(p.text) != '' ORDER BY p.orderIndex LIMIT 1), '') AS preview, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id) AS partCount, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount FROM cards c JOIN folders f ON f.id = c.folderId LEFT JOIN content_parts p ON p.cardId = c.id WHERE lower(f.name) LIKE '%' || lower(:query) || '%' OR lower(p.text) LIKE '%' || lower(:query) || '%' GROUP BY c.id ORDER BY c.updatedAt DESC")
+    @Query("SELECT c.id, c.folderId, c.updatedAt, 0 AS recallPercent, COALESCE((SELECT p.text FROM content_parts p WHERE p.cardId = c.id AND p.type = 'TEXT' AND TRIM(p.text) != '' ORDER BY p.orderIndex LIMIT 1), '') AS preview, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id) AS partCount, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount FROM cards c JOIN folders f ON f.id = c.folderId LEFT JOIN content_parts p ON p.cardId = c.id WHERE lower(f.name) LIKE '%' || lower(:query) || '%' OR lower(p.text) LIKE '%' || lower(:query) || '%' GROUP BY c.id ORDER BY c.updatedAt DESC")
     fun search(query: String, now: Long): Flow<List<CardSummary>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsert(card: CardEntity)
 
     @Query("DELETE FROM cards WHERE id = :id")
@@ -60,10 +61,10 @@ interface ContentPartDao {
     @Query("SELECT * FROM content_parts WHERE id = :id LIMIT 1")
     suspend fun get(id: String): ContentPartEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertAll(parts: List<ContentPartEntity>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsert(part: ContentPartEntity)
 
     @Query("DELETE FROM content_parts WHERE cardId = :cardId")
@@ -93,6 +94,17 @@ interface MediaDao {
 
 @Dao
 interface ReviewHistoryDao {
+    @Query("""
+        SELECT p.id AS partId, p.cardId, c.folderId, p.rememberThis,
+               COUNT(h.id) AS reviewCount,
+               COALESCE(SUM(CASE WHEN h.rating > 1 THEN 1 ELSE 0 END), 0) AS successCount
+        FROM content_parts p
+        JOIN cards c ON c.id = p.cardId
+        LEFT JOIN review_history h ON h.partId = p.id AND h.rating BETWEEN 1 AND 4
+        GROUP BY p.id
+    """)
+    fun observeRecall(): Flow<List<PartRecall>>
+
     @Insert
     suspend fun insert(review: ReviewHistoryEntity)
 

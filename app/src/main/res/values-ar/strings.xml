@@ -83,4 +83,25 @@
     <string name="file_import_failed">تعذّر استيراد هذا الملف</string>
     <string name="reveal_answer">إظهار الإجابة</string>
     <string name="finish">إنهاء</string>
+    <string name="close">إغلاق</string>
+    <string name="create_folder">إنشاء المجلد</string>
+    <string name="save_changes">حفظ التغييرات</string>
+    <string name="saving">جارٍ الحفظ…</string>
+    <string name="folder_editor_help">اجمع الذكريات المترابطة في مجلد. أضف وصفًا ووسومًا لتجدها بسهولة.</string>
+    <string name="folder_name_required">اسم المجلد (مطلوب)</string>
+    <string name="folder_name_required_error">أدخل اسمًا للمجلد</string>
+    <string name="folder_name_example">مثلًا: الإنجليزية اليومية</string>
+    <string name="description_optional">الوصف (اختياري)</string>
+    <string name="folder_description_example">ماذا تريد أن تتذكر؟</string>
+    <string name="tags_optional">الوسوم (اختياري)</string>
+    <string name="folder_tags_example">لغة، إنجليزية</string>
+    <string name="tags_hint">افصل بين الوسوم بفواصل.</string>
+    <string name="remove_tag">إزالة الوسم %1$s</string>
+    <string name="filter_by_tag">تصفية حسب الوسم %1$s</string>
+    <string name="filter_tags">تصفية حسب الوسوم</string>
+    <string name="clear_all">مسح الكل</string>
+    <string name="no_folders_matching_tags">لا توجد مجلدات تطابق هذه الوسوم. أزل أحد المرشحات لعرض المزيد.</string>
+    <string name="card_recall_percent">التذكّر: %1$d%%</string>
+    <string name="folder_recall_progress">%1$d من %2$d بطاقة بنسبة تذكّر ١٠٠ بالمئة</string>
+    <string name="completed_fraction">%1$d/%2$d</string>
 </resources>

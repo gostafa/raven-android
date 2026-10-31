@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -96,11 +97,11 @@ internal fun BottomCreateButton(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-internal fun OverflowMenu(label: String, onEdit: (() -> Unit)? = null, onDelete: () -> Unit) {
+internal fun OverflowMenu(label: String, onEdit: (() -> Unit)? = null, onDelete: () -> Unit, horizontal: Boolean = false) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
-            Icon(Icons.Default.MoreVert, contentDescription = label)
+            Icon(if (horizontal) Icons.Default.MoreHoriz else Icons.Default.MoreVert, contentDescription = label)
         }
         DropdownMenu(
             expanded = expanded,
@@ -159,6 +160,7 @@ internal fun CardRow(
             )
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
+                    Text(stringResource(R.string.card_recall_percent, card.recallPercent), style = MaterialTheme.typography.labelMedium)
                     Text(pluralStringResource(R.plurals.part_count, card.partCount, card.partCount), style = MaterialTheme.typography.bodySmall)
                     Text(
                         stringResource(R.string.due_count, card.dueCount),

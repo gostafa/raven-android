@@ -21,10 +21,13 @@ import com.gostafa.raven.core.model.PartDraft
 import com.gostafa.raven.core.model.PartType
 import com.gostafa.raven.core.model.Rating
 import com.gostafa.raven.core.model.ReviewItem
+import com.gostafa.raven.core.model.cardRecallPercent
+import com.gostafa.raven.core.model.normalizeTags
 import com.gostafa.raven.core.scheduler.ReviewScheduler
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -32,7 +35,7 @@ interface RavenRepository {
     fun observeFolders(): Flow<List<FolderSummary>>
     fun observeCards(folderId: String): Flow<List<CardSummary>>
     fun searchCards(query: String): Flow<List<CardSummary>>
-    suspend fun saveFolder(id: String?, name: String, description: String): String
+    suspend fun saveFolder(id: String?, name: String, description: String, tags: List<String>): String
     suspend fun deleteFolder(id: String)
     suspend fun saveCard(folderId: String, cardId: String?, drafts: List<PartDraft>)
     suspend fun deleteCard(id: String)
@@ -54,11 +57,25 @@ class RoomRavenRepository @Inject constructor(
     private val scheduler: ReviewScheduler,
     private val mediaStorage: MediaStorage,
 ) : RavenRepository {
-    override fun observeFolders() = folders.observeSummaries(System.currentTimeMillis())
-    override fun observeCards(folderId: String) = cards.observeInFolder(folderId, System.currentTimeMillis())
-    override fun searchCards(query: String) = cards.search(query, System.currentTimeMillis())
+    override fun observeFolders(): Flow<List<FolderSummary>> =
+        combine(folders.observeSummaries(System.currentTimeMillis()), history.observeRecall()) { summaries, recall ->
+            val completed = recall.groupBy { it.cardId }.values
+                .filter { cardRecallPercent(it) == 100 }
+                .groupingBy { it.first().folderId }.eachCount()
+            summaries.map { it.copy(completedCardCount = completed[it.id] ?: 0) }
+        }
 
-    override suspend fun saveFolder(id: String?, name: String, description: String): String {
+    private fun Flow<List<CardSummary>>.withRecall(): Flow<List<CardSummary>> =
+        combine(this, history.observeRecall()) { summaries, recall ->
+            val percentages = recall.groupBy { it.cardId }.mapValues { cardRecallPercent(it.value) }
+            summaries.map { it.copy(recallPercent = percentages[it.id] ?: 0) }
+        }
+
+    override fun observeCards(folderId: String) = cards.observeInFolder(folderId, System.currentTimeMillis()).withRecall()
+    override fun searchCards(query: String) = cards.search(query, System.currentTimeMillis()).withRecall()
+
+    override suspend fun saveFolder(id: String?, name: String, description: String, tags: List<String>): String {
+        require(name.isNotBlank()) { "A folder must have a name" }
         val now = System.currentTimeMillis()
         val previous = if (id == null) null else folders.get(id)
         val savedId = previous?.id ?: UUID.randomUUID().toString()
@@ -67,7 +84,7 @@ class RoomRavenRepository @Inject constructor(
                 id = savedId,
                 name = name.trim(),
                 description = description.trim(),
-                tagsJson = previous?.tagsJson ?: "[]",
+                tagsJson = Json.encodeToString(normalizeTags(tags)),
                 createdAt = previous?.createdAt ?: now,
                 updatedAt = now,
             ),
@@ -112,7 +129,8 @@ class RoomRavenRepository @Inject constructor(
                     updatedAt = now,
                 )
             }
-            parts.deleteForCard(savedId)
+            val retainedIds = saved.map { it.id }.toSet()
+            oldParts.keys.filterNot { it in retainedIds }.forEach { parts.delete(it) }
             parts.upsertAll(saved)
         }
         cleanupMedia(oldMediaPaths)

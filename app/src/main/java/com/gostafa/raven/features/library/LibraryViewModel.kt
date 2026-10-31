@@ -50,8 +50,8 @@ class LibraryViewModel @Inject constructor(
     fun searchCards(query: String): Flow<LibraryData<List<CardSummary>>> =
         repository.searchCards(query.trim()).asLibraryData()
 
-    suspend fun saveFolder(id: String?, name: String, description: String): String =
-        repository.saveFolder(id, name, description)
+    suspend fun saveFolder(id: String?, name: String, description: String, tags: List<String>): String =
+        repository.saveFolder(id, name, description, tags)
 
     suspend fun deleteFolder(id: String) = repository.deleteFolder(id)
 

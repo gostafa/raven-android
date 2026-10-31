@@ -3,8 +3,10 @@ package com.gostafa.raven.core.database
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
+import androidx.room.Ignore
 import androidx.room.PrimaryKey
 import com.gostafa.raven.core.model.FsrsState
+import com.gostafa.raven.core.model.decodeTags
 import kotlinx.serialization.json.Json
 
 @Entity(tableName = "folders", indices = [Index("name")])
@@ -88,7 +90,12 @@ data class FolderSummary(
     val cardCount: Int,
     val dueCount: Int,
     val updatedAt: Long,
-)
+    val tagsJson: String = "[]",
+    val completedCardCount: Int = 0,
+) {
+    @get:Ignore
+    val tags: List<String> get() = decodeTags(tagsJson)
+}
 
 data class CardSummary(
     val id: String,
@@ -97,4 +104,5 @@ data class CardSummary(
     val preview: String,
     val partCount: Int,
     val dueCount: Int,
+    val recallPercent: Int = 0,
 )

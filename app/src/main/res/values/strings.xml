@@ -75,4 +75,25 @@
     <string name="file_import_failed">Could not import this file</string>
     <string name="reveal_answer">Reveal answer</string>
     <string name="finish">Finish</string>
+    <string name="close">Close</string>
+    <string name="create_folder">Create folder</string>
+    <string name="save_changes">Save changes</string>
+    <string name="saving">Saving…</string>
+    <string name="folder_editor_help">Give related memories a home. Add a little context and tags to find them easily.</string>
+    <string name="folder_name_required">Folder name (required)</string>
+    <string name="folder_name_required_error">Give your folder a name</string>
+    <string name="folder_name_example">e.g. Everyday English</string>
+    <string name="description_optional">Description (optional)</string>
+    <string name="folder_description_example">What would you like to remember?</string>
+    <string name="tags_optional">Tags (optional)</string>
+    <string name="folder_tags_example">Language, English</string>
+    <string name="tags_hint">Separate tags with commas.</string>
+    <string name="remove_tag">Remove tag %1$s</string>
+    <string name="filter_by_tag">Filter by tag %1$s</string>
+    <string name="filter_tags">Filter by tags</string>
+    <string name="clear_all">Clear all</string>
+    <string name="no_folders_matching_tags">No folders match these tags. Clear a filter to see more folders.</string>
+    <string name="card_recall_percent">Recall: %1$d%%</string>
+    <string name="folder_recall_progress">%1$d of %2$d cards have 100 percent recall</string>
+    <string name="completed_fraction">%1$d/%2$d</string>
 </resources>

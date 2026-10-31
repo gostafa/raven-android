@@ -86,6 +86,7 @@ fun FolderScreen(
             ) {
                 item(key = "folder_header") {
                     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (folder.tags.isNotEmpty()) FolderTags(folder.tags)
                         if (folder.description.isNotBlank()) {
                             Text(folder.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }

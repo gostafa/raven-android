@@ -13,12 +13,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -32,6 +41,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Button
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,22 +57,29 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.gostafa.raven.R
 import com.gostafa.raven.core.database.FolderSummary
 import com.gostafa.raven.core.model.PartDraft
 import com.gostafa.raven.core.model.PartType
+import com.gostafa.raven.core.model.parseTags
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun FolderEditorDialog(
     folder: FolderSummary?,
@@ -71,58 +89,103 @@ internal fun FolderEditorDialog(
 ) {
     var name by rememberSaveable(folder?.id) { mutableStateOf(folder?.name.orEmpty()) }
     var description by rememberSaveable(folder?.id) { mutableStateOf(folder?.description.orEmpty()) }
+    var tagsInput by rememberSaveable(folder?.id) { mutableStateOf(folder?.tags?.joinToString(", ").orEmpty()) }
+    var nameChanged by rememberSaveable(folder?.id) { mutableStateOf(false) }
+    val tags = parseTags(tagsInput)
     var saving by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    AlertDialog(
-        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+    val nameFocus = remember { FocusRequester() }
+    LaunchedEffect(folder?.id) { nameFocus.requestFocus() }
+    Dialog(
         onDismissRequest = { if (!saving) onDismiss() },
-        title = { Text(stringResource(if (folder == null) R.string.add_folder else R.string.edit_folder)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        Surface(
+            modifier = Modifier.safeDrawingPadding().imePadding().padding(12.dp).widthIn(max = 560.dp).fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(28.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        ) {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                        Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.padding(12.dp).size(24.dp))
+                    }
+                    IconButton(onClick = onDismiss, enabled = !saving) { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close)) }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(if (folder == null) R.string.add_folder else R.string.edit_folder), style = MaterialTheme.typography.headlineSmall)
+                    Text(stringResource(R.string.folder_editor_help), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it; failed = false },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.folder_name)) },
+                    onValueChange = { name = it; nameChanged = true; failed = false },
+                    modifier = Modifier.fillMaxWidth().focusRequester(nameFocus),
+                    label = { Text(stringResource(R.string.folder_name_required)) },
+                    placeholder = { Text(stringResource(R.string.folder_name_example)) },
+                    isError = nameChanged && name.isBlank(),
+                    supportingText = if (nameChanged && name.isBlank()) ({ Text(stringResource(R.string.folder_name_required_error)) }) else null,
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     enabled = !saving,
+                    shape = RoundedCornerShape(12.dp),
                 )
                 OutlinedTextField(
                     value = description,
-                    onValueChange = { description = it },
+                    onValueChange = { description = it; failed = false },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.description)) },
+                    label = { Text(stringResource(R.string.description_optional)) },
+                    placeholder = { Text(stringResource(R.string.folder_description_example)) },
                     minLines = 2,
                     maxLines = 4,
                     enabled = !saving,
+                    shape = RoundedCornerShape(12.dp),
                 )
-                if (saving) CircularProgressIndicator()
+                OutlinedTextField(
+                    value = tagsInput,
+                    onValueChange = { tagsInput = it; failed = false },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.tags_optional)) },
+                    placeholder = { Text(stringResource(R.string.folder_tags_example)) },
+                    supportingText = { Text(stringResource(R.string.tags_hint)) },
+                    enabled = !saving,
+                    shape = RoundedCornerShape(12.dp),
+                    maxLines = 3,
+                )
+                if (tags.isNotEmpty()) FolderTags(
+                    tags, removable = true, enabled = !saving,
+                    onTagClick = { removed -> tagsInput = tags.filterNot { it.equals(removed, ignoreCase = true) }.joinToString(", ") },
+                )
                 if (failed) Text(stringResource(R.string.save_failed), color = MaterialTheme.colorScheme.error)
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = name.isNotBlank() && !saving,
-                onClick = {
-                    saving = true
-                    failed = false
-                    scope.launch {
-                        try {
-                            val id = viewModel.saveFolder(folder?.id, name, description)
-                            onSaved(id)
-                        } catch (error: Exception) {
-                            if (error is CancellationException) throw error
-                            failed = true
-                        } finally {
-                            saving = false
-                        }
+                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = onDismiss, enabled = !saving) { Text(stringResource(R.string.cancel)) }
+                    Button(
+                        enabled = name.isNotBlank() && !saving,
+                        onClick = {
+                            if (saving || name.isBlank()) return@Button
+                            saving = true
+                            failed = false
+                            scope.launch {
+                                try {
+                                    val id = viewModel.saveFolder(folder?.id, name, description, tags)
+                                    onSaved(id)
+                                } catch (error: Exception) {
+                                    if (error is CancellationException) throw error
+                                    failed = true
+                                } finally {
+                                    saving = false
+                                }
+                            }
+                        },
+                    ) {
+                        if (saving) CircularProgressIndicator(Modifier.padding(end = 8.dp).size(18.dp), strokeWidth = 2.dp)
+                        Text(stringResource(if (saving) R.string.saving else if (folder == null) R.string.create_folder else R.string.save_changes))
                     }
-                },
-            ) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text(stringResource(R.string.cancel)) } },
-    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
