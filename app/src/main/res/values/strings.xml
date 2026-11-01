@@ -122,4 +122,31 @@
     <string name="discard">Discard</string>
     <string name="discarding">Discarding…</string>
     <string name="keep_editing">Keep editing</string>
+    <string name="review_reminders">Review reminders</string>
+    <string name="reminder_explanation">Hear Raven when a card is ready to review, even after you close the app. Allow notifications and precise alarms for timely reminders. Sound follows your phone settings.</string>
+    <string name="card_ready">Ready to review · %1$s</string>
+    <plurals name="card_ready_parts">
+        <item quantity="one">%1$d part ready. Tap to review this card.</item>
+        <item quantity="other">%1$d parts ready. Tap to review this card.</item>
+    </plurals>
+    <string name="enable_reminders">Enable reminders</string>
+    <string name="not_now">Not now</string>
+    <string name="notifications_allowed">Notifications are allowed</string>
+    <string name="notifications_blocked">Notifications are blocked. Enable them to hear Raven.</string>
+    <string name="notification_settings">Notification and sound settings</string>
+    <string name="precise_allowed">Precise reminder timing is available</string>
+    <string name="precise_delayed">Precise timing is off. Reminders may arrive late.</string>
+    <string name="precise_settings">Alarms and reminders access</string>
+    <string name="close_review">Close review</string>
+    <string name="review_question">How familiar does this feel?</string>
+    <string name="review_save_failed">Your review could not be saved. Choose a rating to try again before moving on.</string>
+    <string name="review_load_failed">Your reviews could not be loaded. Please try again.</string>
+    <string name="show_hints">Show hints</string>
+    <string name="hide_hints">Hide hints</string>
+    <string name="hint">Hint</string>
+    <string name="open_hint">Open hint %1$d</string>
+    <string name="a_little_more_remembered">A LITTLE MORE REMEMBERED</string>
+    <string name="showing_up">Look at you showing up</string>
+    <string name="all_caught_up">All caught up</string>
+    <string name="done">Done</string>
 </resources>

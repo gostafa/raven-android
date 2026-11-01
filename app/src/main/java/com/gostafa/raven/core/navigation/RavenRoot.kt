@@ -11,6 +11,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import com.gostafa.raven.MainActivity
+import com.gostafa.raven.core.reminders.ReminderOffer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -34,7 +37,11 @@ import com.gostafa.raven.features.review.ReviewScreen
 import java.util.Locale
 
 @Composable
-fun RavenRoot(viewModel: LibraryViewModel = hiltViewModel()) {
+fun RavenRoot(
+    viewModel: LibraryViewModel = hiltViewModel(),
+    reviewRequest: MainActivity.ReviewRequest? = null,
+    onReviewRequestConsumed: () -> Unit = {},
+) {
     val language by viewModel.settings.language.collectAsState(initial = "system")
     val configuration = LocalConfiguration.current
     val context = LocalContext.current
@@ -64,10 +71,20 @@ fun RavenRoot(viewModel: LibraryViewModel = hiltViewModel()) {
         LocalLayoutDirection provides layoutDirection,
     ) {
         val navController = rememberNavController()
+        LaunchedEffect(reviewRequest) {
+            reviewRequest?.let {
+                navController.navigate("review/due-card/" + Uri.encode(it.cardId)) {
+                    popUpTo("library")
+                    launchSingleTop = true
+                }
+                onReviewRequestConsumed()
+            }
+        }
         NavHost(navController = navController, startDestination = "library", modifier = Modifier.fillMaxSize()) {
             composable("library") {
                 LibraryScreen(
                     viewModel = viewModel,
+                    reminderOffer = { ReminderOffer() },
                     onReviewDue = { navController.navigate("review/due/_") },
                     onOpenFolder = { navController.navigate("folder/" + Uri.encode(it)) { launchSingleTop = true } },
                     onSearch = { navController.navigate("search") { launchSingleTop = true } },

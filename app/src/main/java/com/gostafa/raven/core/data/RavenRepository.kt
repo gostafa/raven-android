@@ -28,6 +28,10 @@ import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.delay
+import com.gostafa.raven.core.reminders.ReminderInvalidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -45,6 +49,7 @@ interface RavenRepository {
     suspend fun deleteCard(id: String)
     suspend fun cardWithParts(cardId: String): CardWithParts?
     suspend fun queueDue(): List<ReviewItem>
+    suspend fun queueDueCard(cardId: String): List<ReviewItem> = queueDue().filter { it.content.card.id == cardId }
     suspend fun queueCard(cardId: String): List<ReviewItem>
     suspend fun queueFolder(folderId: String): List<ReviewItem>
     suspend fun rate(partId: String, rating: Rating, practice: Boolean = false)
@@ -61,9 +66,26 @@ class RoomRavenRepository @Inject constructor(
     private val history: ReviewHistoryDao,
     private val scheduler: ReviewScheduler,
     private val mediaStorage: MediaStorage,
+    private val reminders: ReminderInvalidator = ReminderInvalidator {},
+    private val dueTimeRefresh: DueTimeRefresh = DueTimeRefresh(),
 ) : RavenRepository {
+    // Database changes restart the clock; due boundaries refresh queries even without writes.
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private fun dueClock(): Flow<Long> = combine(parts.observeReviewable(), dueTimeRefresh.changes) { reviewable, _ -> reviewable }.flatMapLatest { reviewable ->
+        flow {
+            while (true) {
+                val now = System.currentTimeMillis()
+                emit(now)
+                val next = reviewable.map { it.dueAt }.filter { it > now }.minOrNull()
+                // Also detect wall-clock changes while a screen remains open.
+                delay(next?.minus(now)?.coerceIn(1L, 60_000L) ?: 60_000L)
+            }
+        }
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun observeFolders(): Flow<List<FolderSummary>> =
-        combine(folders.observeSummaries(System.currentTimeMillis()), history.observeRecall()) { summaries, recall ->
+        combine(dueClock().flatMapLatest { folders.observeSummaries(it) }, history.observeRecall()) { summaries, recall ->
             val completed = recall.groupBy { it.cardId }.values
                 .filter { cardRecallPercent(it) == 100 }
                 .groupingBy { it.first().folderId }.eachCount()
@@ -76,8 +98,10 @@ class RoomRavenRepository @Inject constructor(
             summaries.map { it.copy(recallPercent = percentages[it.id] ?: 0) }
         }
 
-    override fun observeCards(folderId: String) = cards.observeInFolder(folderId, System.currentTimeMillis()).withRecall()
-    override fun searchCards(query: String) = cards.search(query, System.currentTimeMillis()).withRecall()
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    override fun observeCards(folderId: String) = dueClock().flatMapLatest { cards.observeInFolder(folderId, it) }.withRecall()
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    override fun searchCards(query: String) = dueClock().flatMapLatest { cards.search(query, it) }.withRecall()
 
     override suspend fun saveFolder(id: String?, name: String, description: String, tags: List<String>): String {
         require(name.isNotBlank()) { "A folder must have a name" }
@@ -100,6 +124,7 @@ class RoomRavenRepository @Inject constructor(
     override suspend fun deleteFolder(id: String) {
         val paths = parts.mediaPathsInFolder(id).distinct()
         database.withTransaction { folders.delete(id) }
+        reminders.changed()
         cleanupMedia(paths)
     }
 
@@ -151,6 +176,7 @@ class RoomRavenRepository @Inject constructor(
             oldParts.keys.filterNot { it in retainedIds }.forEach { parts.delete(it) }
             parts.upsertAll(saved)
         }
+        reminders.changed()
         // The card has committed. Cleanup failure must not turn a successful save into a retry.
         try {
             cleanupMedia(oldMediaPaths)
@@ -163,6 +189,7 @@ class RoomRavenRepository @Inject constructor(
     override suspend fun deleteCard(id: String) {
         val oldMediaPaths = parts.forCard(id).mapNotNull(ContentPartEntity::mediaPath)
         database.withTransaction { cards.delete(id) }
+        reminders.changed()
         cleanupMedia(oldMediaPaths)
     }
 
@@ -174,6 +201,10 @@ class RoomRavenRepository @Inject constructor(
 
     override suspend fun queueDue(): List<ReviewItem> = parts.due(System.currentTimeMillis())
         .mapNotNull { part -> cardWithParts(part.cardId)?.let { ReviewItem(it, part) } }
+
+    override suspend fun queueDueCard(cardId: String): List<ReviewItem> = parts.reviewableForCard(cardId)
+        .filter { it.dueAt <= System.currentTimeMillis() }
+        .mapNotNull { part -> cardWithParts(cardId)?.let { ReviewItem(it, part) } }
 
     override suspend fun queueCard(cardId: String): List<ReviewItem> = parts.reviewableForCard(cardId)
         .mapNotNull { part -> cardWithParts(part.cardId)?.let { ReviewItem(it, part) } }
@@ -214,6 +245,7 @@ class RoomRavenRepository @Inject constructor(
                 ),
             )
         }
+        reminders.changed()
     }
 
     override suspend fun saveMedia(relativePath: String, mimeType: String, byteSize: Long) {

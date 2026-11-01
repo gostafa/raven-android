@@ -8,6 +8,9 @@ import androidx.room.Room
 import com.gostafa.raven.core.data.RavenRepository
 import com.gostafa.raven.core.data.RoomRavenRepository
 import com.gostafa.raven.core.database.RavenDatabase
+import com.gostafa.raven.core.database.MIGRATION_1_2
+import com.gostafa.raven.core.reminders.ReminderCoordinator
+import com.gostafa.raven.core.reminders.ReminderInvalidator
 import com.gostafa.raven.core.scheduler.Fsrs6Scheduler
 import com.gostafa.raven.core.scheduler.ReviewScheduler
 import com.gostafa.raven.core.media.MediaStorage
@@ -25,6 +28,8 @@ private val Context.ravenPreferences by preferencesDataStore(name = "raven_prefe
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryBindings {
     @Binds
+    abstract fun bindReminderInvalidator(coordinator: ReminderCoordinator): ReminderInvalidator
+    @Binds
     @Singleton
     abstract fun bindRavenRepository(repository: RoomRavenRepository): RavenRepository
 }
@@ -35,7 +40,7 @@ object AppModule {
     @Provides
     @Singleton
     fun database(@ApplicationContext context: Context): RavenDatabase =
-        Room.databaseBuilder(context, RavenDatabase::class.java, "raven.db").build()
+        Room.databaseBuilder(context, RavenDatabase::class.java, "raven.db").addMigrations(MIGRATION_1_2).build()
 
     @Provides fun folderDao(database: RavenDatabase) = database.folderDao()
     @Provides fun cardDao(database: RavenDatabase) = database.cardDao()

@@ -43,6 +43,9 @@ interface CardDao {
 
 @Dao
 interface ContentPartDao {
+    @Query("SELECT * FROM content_parts WHERE rememberThis = 1")
+    fun observeReviewable(): Flow<List<ContentPartEntity>>
+
     @Query("SELECT * FROM content_parts WHERE cardId = :cardId ORDER BY orderIndex")
     suspend fun forCard(cardId: String): List<ContentPartEntity>
 
@@ -78,6 +81,26 @@ interface ContentPartDao {
 
     @Query("DELETE FROM content_parts WHERE id = :id")
     suspend fun delete(id: String)
+}
+
+@Dao
+interface ReminderDao {
+    @Query("""SELECT p.id AS partId, p.cardId, p.dueAt, f.name AS folderName
+        FROM content_parts p JOIN cards c ON c.id = p.cardId JOIN folders f ON f.id = c.folderId
+        LEFT JOIN reminder_receipts r ON r.partId = p.id
+        WHERE p.rememberThis = 1 AND p.dueAt <= :now AND (r.partId IS NULL OR r.handledDueAt != p.dueAt)
+        ORDER BY p.dueAt, p.id""")
+    suspend fun pendingDue(now: Long): List<ReminderOccurrence>
+
+    @Query("""SELECT MIN(p.dueAt) FROM content_parts p LEFT JOIN reminder_receipts r ON r.partId = p.id
+        WHERE p.rememberThis = 1 AND (r.partId IS NULL OR r.handledDueAt != p.dueAt)""")
+    suspend fun nextUnhandledDue(): Long?
+
+    @Query("SELECT DISTINCT cardId FROM content_parts WHERE rememberThis = 1 AND dueAt <= :now")
+    suspend fun dueCardIds(now: Long): List<String>
+
+    @Upsert
+    suspend fun acknowledge(receipts: List<ReminderReceiptEntity>)
 }
 
 @Dao

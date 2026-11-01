@@ -130,4 +130,35 @@
     <string name="discard">تجاهل</string>
     <string name="discarding">جارٍ التجاهل…</string>
     <string name="keep_editing">متابعة التعديل</string>
+    <string name="review_reminders">تذكيرات المراجعة</string>
+    <string name="reminder_explanation">اسمع صوت الغراب عندما تصبح بطاقة جاهزة للمراجعة، حتى بعد إغلاق التطبيق. اسمح بالإشعارات والمنبّهات الدقيقة لتصلك التذكيرات في وقتها. يتبع الصوت إعدادات هاتفك.</string>
+    <string name="card_ready">جاهزة للمراجعة · %1$s</string>
+    <plurals name="card_ready_parts">
+        <item quantity="zero">لا توجد أجزاء جاهزة للمراجعة.</item>
+        <item quantity="one">جزء واحد جاهز. اضغط لمراجعة هذه البطاقة.</item>
+        <item quantity="two">جزآن جاهزان. اضغط لمراجعة هذه البطاقة.</item>
+        <item quantity="few">%1$d أجزاء جاهزة. اضغط لمراجعة هذه البطاقة.</item>
+        <item quantity="many">%1$d جزءًا جاهزًا. اضغط لمراجعة هذه البطاقة.</item>
+        <item quantity="other">%1$d جزء جاهز. اضغط لمراجعة هذه البطاقة.</item>
+    </plurals>
+    <string name="enable_reminders">تفعيل التذكيرات</string>
+    <string name="not_now">ليس الآن</string>
+    <string name="notifications_allowed">الإشعارات مفعّلة</string>
+    <string name="notifications_blocked">الإشعارات محظورة. فعّلها لسماع صوت الغراب.</string>
+    <string name="notification_settings">إعدادات الإشعارات والصوت</string>
+    <string name="precise_allowed">التذكير في الوقت الدقيق متاح</string>
+    <string name="precise_delayed">التوقيت الدقيق غير مفعّل. قد تتأخر التذكيرات.</string>
+    <string name="precise_settings">إذن المنبّهات والتذكيرات</string>
+    <string name="close_review">إغلاق المراجعة</string>
+    <string name="review_question">ما مدى معرفتك بهذا؟</string>
+    <string name="review_save_failed">تعذّر حفظ مراجعتك. اختر تقييمًا للمحاولة مجددًا قبل المتابعة.</string>
+    <string name="review_load_failed">تعذّر تحميل مراجعاتك. حاول مجددًا.</string>
+    <string name="show_hints">إظهار التلميحات</string>
+    <string name="hide_hints">إخفاء التلميحات</string>
+    <string name="hint">تلميح</string>
+    <string name="open_hint">فتح التلميح %1$d</string>
+    <string name="a_little_more_remembered">تذكّرت المزيد</string>
+    <string name="showing_up">خطوة أخرى في رحلة التذكّر</string>
+    <string name="all_caught_up">أنجزت كل المراجعات</string>
+    <string name="done">تم</string>
 </resources>

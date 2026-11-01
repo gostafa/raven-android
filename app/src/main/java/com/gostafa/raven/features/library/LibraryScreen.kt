@@ -51,6 +51,7 @@ fun LibraryScreen(
     onOpenFolder: (String) -> Unit,
     onSearch: () -> Unit,
     onReviewDue: () -> Unit,
+    reminderOffer: @Composable () -> Unit = {},
 ) {
     val state by viewModel.folders.collectAsStateWithLifecycle()
     val folders = state.value.orEmpty()
@@ -111,6 +112,7 @@ fun LibraryScreen(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+            reminderOffer()
             if (selectedTags.isNotEmpty()) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
                     Text(stringResource(R.string.filter_tags), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

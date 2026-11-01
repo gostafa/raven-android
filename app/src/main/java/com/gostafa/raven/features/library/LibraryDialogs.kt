@@ -219,7 +219,7 @@ internal fun SettingsDialog(viewModel: LibraryViewModel, onDismiss: () -> Unit) 
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings)) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(stringResource(R.string.language), style = MaterialTheme.typography.titleSmall)
                 choices.forEach { (value, label) ->
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -227,6 +227,7 @@ internal fun SettingsDialog(viewModel: LibraryViewModel, onDismiss: () -> Unit) 
                         Text(stringResource(label), modifier = Modifier.weight(1f))
                     }
                 }
+                com.gostafa.raven.core.reminders.ReminderControls()
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.finish)) } },
