@@ -169,4 +169,7 @@
     <string name="preview_playback_failed">تعذر التشغيل. اضغط للمحاولة مجددًا.</string>
     <string name="preview_loading">جارٍ التحميل…</string>
     <string name="preview_playing">قيد التشغيل</string>
+    <string name="previous_hint">التلميح السابق</string>
+    <string name="next_hint">التلميح التالي</string>
+    <string name="hint_position">%1$d / %2$d</string>
 </resources>

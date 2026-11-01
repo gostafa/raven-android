@@ -157,4 +157,7 @@
     <string name="preview_playback_failed">Could not play. Tap to retry.</string>
     <string name="preview_loading">Loading…</string>
     <string name="preview_playing">Playing</string>
+    <string name="previous_hint">Previous hint</string>
+    <string name="next_hint">Next hint</string>
+    <string name="hint_position">%1$d / %2$d</string>
 </resources>

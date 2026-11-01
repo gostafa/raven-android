@@ -28,12 +28,31 @@ class ReviewUiTest {
         compose.setContent { RavenTheme { ReviewContent(state(), {}, { rating = it }, {}) } }
         compose.onNodeWithText("Good").assertIsEnabled()
         compose.onNodeWithContentDescription("Show hints").performClick()
-        compose.onNodeWithText("Supporting hint").performClick()
+        compose.onNodeWithText("Supporting hint").assertIsDisplayed()
         compose.onNodeWithText("Hint").assertIsDisplayed()
         compose.onNodeWithText("Close").performClick()
         compose.onNodeWithText("Good").performClick()
         compose.runOnIdle { assertEquals(Rating.GOOD, rating) }
     }
+    @Test fun hintArrowsRespectBoundsAndReopeningResetsSelection() {
+        val initial = state()
+        val item = initial.current!!
+        val second = item.content.parts.last().copy(id = "second", text = "Second hint", orderIndex = 2)
+        val multiple = initial.copy(items = listOf(item.copy(content = item.content.copy(parts = item.content.parts + second))))
+        compose.setContent { RavenTheme { ReviewContent(multiple, {}, {}, {}) } }
+        compose.onNodeWithContentDescription("Show hints").performClick()
+        compose.onNodeWithContentDescription("Previous hint").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Next hint").performClick()
+        compose.onNodeWithText("Second hint").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Next hint").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Previous hint").performClick()
+        compose.onNodeWithText("Supporting hint").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Next hint").performClick()
+        compose.onNodeWithText("Close").performClick()
+        compose.onNodeWithContentDescription("Show hints").performClick()
+        compose.onNodeWithText("Supporting hint").assertIsDisplayed()
+    }
+
     @Test fun savingDisablesRatingsAndFailedSaveAllowsRetry() {
         compose.setContent { RavenTheme { ReviewContent(state(submitting = true), {}, {}, {}) } }
         compose.onNodeWithText("Good").assertIsNotEnabled()

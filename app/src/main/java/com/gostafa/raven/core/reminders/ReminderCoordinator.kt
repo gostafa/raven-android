@@ -2,13 +2,11 @@ package com.gostafa.raven.core.reminders
 
 import android.app.AlarmManager
 import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
-import android.media.AudioAttributes
 import android.net.Uri
 import android.os.Build
 import androidx.room.withTransaction
@@ -106,13 +104,7 @@ class ReminderCoordinator @Inject constructor(
     fun canSchedulePrecisely(): Boolean = Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms()
 
     private fun ensureChannel(messages: Context = context) {
-        val channel = NotificationChannel(CHANNEL_ID, messages.getString(R.string.review_reminders), NotificationManager.IMPORTANCE_HIGH)
-        channel.description = messages.getString(R.string.reminder_explanation)
-        channel.setSound(
-            Uri.parse("android.resource://${context.packageName}/raw/${context.resources.getResourceEntryName(R.raw.raven)}"),
-            AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build(),
-        )
-        notifications.createNotificationChannel(channel)
+        ensureReminderChannel(context, messages)
     }
 
     suspend fun reconcile() = mutex.withLock {
@@ -188,7 +180,7 @@ class ReminderCoordinator @Inject constructor(
     }
 
     companion object {
-        const val CHANNEL_ID = "review_reminders_v1"
+        const val CHANNEL_ID = "review_reminders_v2"
         const val ACTION_REVIEW_CARD = "com.gostafa.raven.REVIEW_DUE_CARD"
         const val EXTRA_CARD_ID = "review_card_id"
         const val EXTRA_REQUEST_ID = "review_request_id"

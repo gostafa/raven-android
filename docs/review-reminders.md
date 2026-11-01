@@ -2,6 +2,8 @@
 
 Raven schedules one Android alarm for the earliest unhandled review occurrence. At delivery it rechecks Room and posts one notification per card, combining parts that became due together. The notification channel plays the bundled Raven sound. There is no continuously running foreground service.
 
+The v2 reminder channel repairs bundled-sound references retained from older builds. Android does not update a registered channel's sound when the app registers it again. Migration preserves channel importance, intentional silence, custom sounds, and other notification preferences. The old channel remains available for already-visible notifications.
+
 Delivery receipts identify a part and its due timestamp. Reopening the app, recovery work, or reboot does not alert again for the same handled occurrence. A newly scheduled due timestamp can alert again. Reviewing a visible card acknowledges its due occurrences without interrupting that card; other cards still notify.
 
 Notification taps open only the selected card's due parts. Card and folder practice retain their existing scheduling behavior. Supporting parts are optional hints, and ratings are immediately available.

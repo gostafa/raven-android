@@ -9,6 +9,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -122,29 +124,44 @@ internal fun ReviewContent(
                 state.current == null -> Completion(state.index, onExit)
                 else -> key(state.current!!.prompt.id) {
                     val item = state.current!!
-                    var hintsVisible by remember { mutableStateOf(false) }
-                    var selectedHint by remember { mutableStateOf<ContentPartEntity?>(null) }
-                    val hints = item.content.parts.filterNot { it.id == item.prompt.id }
-                    Column(
-                        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        PartContent(item.prompt)
-                        if (hints.isNotEmpty()) {
-                            Spacer(Modifier.height(24.dp))
-                            OutlinedIconButton(onClick = { hintsVisible = !hintsVisible }, enabled = !state.submitting, shape = RoundedCornerShape(6.dp)) {
-                                Icon(Icons.Default.Lightbulb, contentDescription = stringResource(if (hintsVisible) R.string.hide_hints else R.string.show_hints))
-                            }
-                            if (hintsVisible) HintTiles(hints, !state.submitting) { selectedHint = it }
+                    var selectedHint by remember { mutableStateOf<Int?>(null) }
+                    val hints = item.content.parts.filterNot { it.id == item.prompt.id }.sortedBy { it.orderIndex }
+                    Box(Modifier.fillMaxSize()) {
+                        Column(
+                            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 64.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            PartContent(item.prompt, autoplay = true, playbackAllowed = selectedHint == null)
                         }
+                        if (hints.isNotEmpty()) OutlinedIconButton(
+                            onClick = { selectedHint = 0 }, enabled = !state.submitting,
+                            modifier = Modifier.align(androidx.compose.ui.AbsoluteAlignment.TopRight).padding(12.dp),
+                            shape = RoundedCornerShape(6.dp),
+                        ) { Icon(Icons.Default.Lightbulb, stringResource(R.string.show_hints)) }
                     }
-                    selectedHint?.let { hint ->
+                    selectedHint?.let { index ->
                         AlertDialog(
                             onDismissRequest = { selectedHint = null },
-                            containerColor = MaterialTheme.colorScheme.surface,
                             title = { Text(stringResource(R.string.hint)) },
-                            text = { Column(Modifier.verticalScroll(rememberScrollState())) { PartContent(hint) } },
+                            text = {
+                                Column {
+                                    key(hints[index].id) {
+                                        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                                            PartContent(hints[index])
+                                        }
+                                    }
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                        IconButton(onClick = { selectedHint = index - 1 }, enabled = index > 0) {
+                                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.previous_hint))
+                                        }
+                                        Text(stringResource(R.string.hint_position, index + 1, hints.size))
+                                        IconButton(onClick = { selectedHint = index + 1 }, enabled = index < hints.lastIndex) {
+                                            Icon(Icons.AutoMirrored.Filled.ArrowForward, stringResource(R.string.next_hint))
+                                        }
+                                    }
+                                }
+                            },
                             confirmButton = { TextButton(onClick = { selectedHint = null }) { Text(stringResource(R.string.close)) } },
                         )
                     }
@@ -179,29 +196,6 @@ private fun RatingActions(enabled: Boolean, onRate: (Rating) -> Unit) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun HintTiles(hints: List<ContentPartEntity>, enabled: Boolean, onSelect: (ContentPartEntity) -> Unit) {
-    val context = LocalContext.current
-    FlowRow(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.Center, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        hints.forEachIndexed { index, hint ->
-            Surface(
-                modifier = Modifier.padding(horizontal = 4.dp).size(88.dp).clickable(enabled = enabled, onClickLabel = stringResource(R.string.open_hint, index + 1)) { onSelect(hint) },
-                shape = RoundedCornerShape(6.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            ) {
-                Box(Modifier.padding(8.dp), contentAlignment = Alignment.Center) {
-                    if (hint.type == PartType.IMAGE.name && hint.mediaPath != null) {
-                        AsyncImage(File(context.filesDir, hint.mediaPath), contentDescription = stringResource(R.string.open_hint, index + 1), contentScale = ContentScale.Crop)
-                    } else Text(
-                        if (hint.type == PartType.TEXT.name) hint.text else stringResource(if (hint.type == PartType.AUDIO.name) R.string.audio_part else R.string.video_part),
-                        maxLines = 3, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-        }
-    }
-}
-
 @Composable
 private fun Completion(count: Int, onExit: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -220,7 +214,7 @@ private fun Completion(count: Int, onExit: () -> Unit) {
 }
 
 @Composable
-private fun PartContent(part: ContentPartEntity) {
+private fun PartContent(part: ContentPartEntity, autoplay: Boolean = false, playbackAllowed: Boolean = true) {
     val context = LocalContext.current
     when (runCatching { PartType.valueOf(part.type) }.getOrDefault(PartType.TEXT)) {
         PartType.TEXT -> Text(part.text, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -231,7 +225,7 @@ private fun PartContent(part: ContentPartEntity) {
         }
         PartType.AUDIO, PartType.VIDEO -> {
             val file = part.mediaPath?.let { File(context.filesDir, it) }
-            if (file?.exists() == true) MediaPlayer(file, part.type == PartType.AUDIO.name)
+            if (file?.exists() == true) MediaPlayer(file, part.type == PartType.AUDIO.name, autoplay, playbackAllowed)
             else Text(stringResource(R.string.media_unavailable), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -239,14 +233,25 @@ private fun PartContent(part: ContentPartEntity) {
 
 @Composable
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-private fun MediaPlayer(file: File, audio: Boolean) {
+private fun MediaPlayer(file: File, audio: Boolean, autoplay: Boolean, playbackAllowed: Boolean) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val player = remember(file) { ExoPlayer.Builder(context).build() }
+    var resumeAfterHints by remember(player) { mutableStateOf(false) }
+    LaunchedEffect(player, playbackAllowed) {
+        if (!playbackAllowed) {
+            resumeAfterHints = player.playWhenReady
+            player.pause()
+        } else if (resumeAfterHints && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            resumeAfterHints = false
+            player.play()
+        }
+    }
     DisposableEffect(player, lifecycle) {
         player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
         player.prepare()
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_PAUSE) player.pause() }
+        if (autoplay && playbackAllowed && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) player.play()
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) { resumeAfterHints = false; player.pause() } }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer); player.release() }
     }
