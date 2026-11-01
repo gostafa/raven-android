@@ -106,6 +106,7 @@ data class FolderSummary(
     val updatedAt: Long,
     val tagsJson: String = "[]",
     val completedCardCount: Int = 0,
+    val nextReviewAt: Long? = null,
 ) {
     @get:Ignore
     val tags: List<String> get() = decodeTags(tagsJson)
@@ -119,6 +120,8 @@ data class CardSummary(
     val partCount: Int,
     val dueCount: Int,
     val recallPercent: Int = 0,
+    val createdAt: Long = updatedAt,
+    val nextReviewAt: Long? = null,
 )
 
 /** Room fetches related parts in batches; consumers sort by orderIndex. */

@@ -8,8 +8,10 @@ import javax.inject.Inject
 @HiltAndroidApp
 class RavenApplication : Application() {
     @Inject lateinit var reminders: ReminderCoordinator
+    @Inject lateinit var companionVisibility: com.gostafa.raven.core.companion.CompanionVisibility
     override fun onCreate() {
         super.onCreate()
+        registerActivityLifecycleCallbacks(companionVisibility)
         reminders.start()
     }
 }

@@ -1,5 +1,7 @@
 package com.gostafa.raven.features.library
 
+import com.gostafa.raven.core.designsystem.RavenButton as Button
+import com.gostafa.raven.core.designsystem.RavenAlertDialog as AlertDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,20 +16,21 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import com.gostafa.raven.core.designsystem.RavenTextField as OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -80,7 +83,7 @@ internal fun FolderEditorDialog(
         Surface(
             modifier = Modifier.safeDrawingPadding().imePadding().padding(12.dp).widthIn(max = 560.dp).fillMaxWidth(),
             color = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         ) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -155,7 +158,7 @@ internal fun FolderEditorDialog(
                             }
                         },
                     ) {
-                        if (saving) CircularProgressIndicator(Modifier.padding(end = 8.dp).size(18.dp), strokeWidth = 2.dp)
+                        if (saving) CircularProgressIndicator(Modifier.padding(end = 8.dp).size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                         Text(stringResource(if (saving) R.string.saving else if (folder == null) R.string.create_folder else R.string.save_changes))
                     }
                 }
@@ -222,12 +225,14 @@ internal fun SettingsDialog(viewModel: LibraryViewModel, onDismiss: () -> Unit) 
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(stringResource(R.string.language), style = MaterialTheme.typography.titleSmall)
                 choices.forEach { (value, label) ->
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        RadioButton(selected = language == value, onClick = { viewModel.setLanguage(value) })
-                        Text(stringResource(label), modifier = Modifier.weight(1f))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        .selectable(language == value, role = Role.RadioButton, onClick = { viewModel.setLanguage(value) })) {
+                        RadioButton(selected = language == value, onClick = null)
+                        Text(stringResource(label), modifier = Modifier.weight(1f).padding(start = 12.dp))
                     }
                 }
                 com.gostafa.raven.core.reminders.ReminderControls()
+                com.gostafa.raven.core.companion.CompanionControls(viewModel.settings)
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.finish)) } },

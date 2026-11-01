@@ -22,6 +22,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.gostafa.raven.core.model.CardReference
+import com.gostafa.raven.core.model.CardTransferInput
+import com.gostafa.raven.core.model.TransferOperation
+
+data class TransferRequest(val sources: List<CardReference>, val operation: TransferOperation)
 
 data class LibraryData<T>(val value: T? = null, val failed: Boolean = false)
 
@@ -39,6 +44,47 @@ class LibraryViewModel @Inject constructor(
     val settings: SettingsRepository,
     private val archiveService: FolderArchiveService? = null,
 ) : ViewModel() {
+    val clipboard = MutableStateFlow<List<CardReference>>(emptyList())
+    val cardTransferRequest = MutableStateFlow<TransferRequest?>(null)
+    val cardTransferBusy = MutableStateFlow(false)
+    val cardTransferFailed = MutableStateFlow(false)
+
+    fun copyCards(sources: List<CardReference>) { clipboard.value = sources.distinct() }
+    fun clearClipboard() { clipboard.value = emptyList() }
+    fun requestMove(sources: List<CardReference>) {
+        if (sources.isNotEmpty() && !cardTransferBusy.value) {
+            cardTransferFailed.value = false
+            cardTransferRequest.value = TransferRequest(sources.distinct(), TransferOperation.MOVE)
+        }
+    }
+    fun requestPaste(folderId: String? = null) {
+        if (clipboard.value.isEmpty() || cardTransferBusy.value) return
+        cardTransferFailed.value = false
+        cardTransferRequest.value = TransferRequest(clipboard.value, TransferOperation.COPY)
+        if (folderId != null) transferCardsTo(folderId)
+    }
+    fun dismissTransfer() {
+        if (!cardTransferBusy.value) { cardTransferRequest.value = null; cardTransferFailed.value = false }
+    }
+    fun transferCardsTo(folderId: String) {
+        val request = cardTransferRequest.value ?: return
+        if (cardTransferBusy.value) return
+        cardTransferBusy.value = true
+        cardTransferFailed.value = false
+        viewModelScope.launch {
+            try {
+                val result = repository.transferCards(CardTransferInput(request.operation, request.sources, folderId))
+                if (request.operation == TransferOperation.MOVE) {
+                    val moved = result.entries.associate { it.source to it.destination }
+                    clipboard.value = clipboard.value.map { moved[it] ?: it }.distinct()
+                }
+                cardTransferRequest.value = null
+            } catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                cardTransferFailed.value = true
+            } finally { cardTransferBusy.value = false }
+        }
+    }
     val archiveBusy = MutableStateFlow(false)
     val archiveResult = MutableStateFlow<ArchiveResult?>(null)
     val archiveError = MutableStateFlow<String?>(null)

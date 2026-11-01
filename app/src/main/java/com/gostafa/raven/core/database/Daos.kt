@@ -11,7 +11,7 @@ import com.gostafa.raven.core.model.PartRecall
 
 @Dao
 interface FolderDao {
-    @Query("SELECT f.id, f.name, f.description, f.tagsJson, 0 AS completedCardCount, (SELECT COUNT(*) FROM cards c WHERE c.folderId = f.id) AS cardCount, (SELECT COUNT(*) FROM content_parts p JOIN cards c ON c.id = p.cardId WHERE c.folderId = f.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount, f.updatedAt FROM folders f ORDER BY f.updatedAt DESC")
+    @Query("SELECT f.id, f.name, f.description, f.tagsJson, 0 AS completedCardCount, (SELECT COUNT(*) FROM cards c WHERE c.folderId = f.id) AS cardCount, (SELECT COUNT(*) FROM content_parts p JOIN cards c ON c.id = p.cardId WHERE c.folderId = f.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount, (SELECT MIN(p.dueAt) FROM content_parts p JOIN cards c ON c.id = p.cardId WHERE c.folderId = f.id AND p.rememberThis = 1) AS nextReviewAt, f.updatedAt FROM folders f ORDER BY f.updatedAt DESC")
     fun observeSummaries(now: Long): Flow<List<FolderSummary>>
 
     @Query("SELECT * FROM folders WHERE id = :id LIMIT 1")
@@ -24,8 +24,8 @@ interface FolderDao {
     suspend fun delete(id: String)
 }
 
-private const val CARDS_IN_FOLDER = "SELECT c.id, c.folderId, c.updatedAt, 0 AS recallPercent, COALESCE((SELECT p.text FROM content_parts p WHERE p.cardId = c.id AND p.type = 'TEXT' AND TRIM(p.text) != '' ORDER BY p.orderIndex LIMIT 1), '') AS preview, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id) AS partCount, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount FROM cards c WHERE c.folderId = :folderId ORDER BY c.updatedAt DESC"
-private const val SEARCH_CARDS = "SELECT c.id, c.folderId, c.updatedAt, 0 AS recallPercent, COALESCE((SELECT p.text FROM content_parts p WHERE p.cardId = c.id AND p.type = 'TEXT' AND TRIM(p.text) != '' ORDER BY p.orderIndex LIMIT 1), '') AS preview, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id) AS partCount, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount FROM cards c JOIN folders f ON f.id = c.folderId LEFT JOIN content_parts p ON p.cardId = c.id WHERE lower(f.name) LIKE '%' || lower(:query) || '%' OR lower(p.text) LIKE '%' || lower(:query) || '%' GROUP BY c.id ORDER BY c.updatedAt DESC"
+private const val CARDS_IN_FOLDER = "SELECT c.id, c.folderId, c.updatedAt, c.createdAt, (SELECT MIN(r.dueAt) FROM content_parts r WHERE r.cardId = c.id AND r.rememberThis = 1) AS nextReviewAt, 0 AS recallPercent, COALESCE((SELECT p.text FROM content_parts p WHERE p.cardId = c.id AND p.type = 'TEXT' AND TRIM(p.text) != '' ORDER BY p.orderIndex LIMIT 1), '') AS preview, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id) AS partCount, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount FROM cards c WHERE c.folderId = :folderId ORDER BY c.updatedAt DESC"
+private const val SEARCH_CARDS = "SELECT c.id, c.folderId, c.updatedAt, c.createdAt, (SELECT MIN(r.dueAt) FROM content_parts r WHERE r.cardId = c.id AND r.rememberThis = 1) AS nextReviewAt, 0 AS recallPercent, COALESCE((SELECT p.text FROM content_parts p WHERE p.cardId = c.id AND p.type = 'TEXT' AND TRIM(p.text) != '' ORDER BY p.orderIndex LIMIT 1), '') AS preview, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id) AS partCount, (SELECT COUNT(*) FROM content_parts p WHERE p.cardId = c.id AND p.rememberThis = 1 AND p.dueAt <= :now) AS dueCount FROM cards c JOIN folders f ON f.id = c.folderId LEFT JOIN content_parts p ON p.cardId = c.id WHERE lower(f.name) LIKE '%' || lower(:query) || '%' OR lower(p.text) LIKE '%' || lower(:query) || '%' GROUP BY c.id ORDER BY c.updatedAt DESC"
 
 @Dao
 interface CardDao {

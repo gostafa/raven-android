@@ -1,5 +1,8 @@
 package com.gostafa.raven.features.review
 
+import com.gostafa.raven.core.designsystem.RavenButton as Button
+import com.gostafa.raven.core.designsystem.RavenOutlinedButton as OutlinedButton
+import com.gostafa.raven.core.designsystem.RavenAlertDialog as AlertDialog
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -27,7 +30,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,9 +57,10 @@ fun ReviewScreen(
     target: String?,
     onExit: () -> Unit,
     viewModel: ReviewViewModel = hiltViewModel(),
+    cardIds: List<String> = emptyList(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(mode, target) { viewModel.begin(mode, target) }
+    LaunchedEffect(mode, target, cardIds) { viewModel.begin(mode, target, cardIds = cardIds) }
     ReviewContent(state, onExit, viewModel::rate, viewModel::retry, viewModel::visibleCard)
 }
 
@@ -136,7 +139,7 @@ internal fun ReviewContent(
                         }
                         if (hints.isNotEmpty()) OutlinedIconButton(
                             onClick = { selectedHint = 0 }, enabled = !state.submitting,
-                            modifier = Modifier.align(androidx.compose.ui.AbsoluteAlignment.TopRight).padding(12.dp),
+                            modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
                             shape = RoundedCornerShape(6.dp),
                         ) { Icon(Icons.Default.Lightbulb, stringResource(R.string.show_hints)) }
                     }
@@ -205,7 +208,7 @@ private fun Completion(count: Int, onExit: () -> Unit) {
         Spacer(Modifier.height(28.dp))
         Text(stringResource(R.string.a_little_more_remembered), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
-        Text(stringResource(if (count > 0) R.string.showing_up else R.string.all_caught_up), style = MaterialTheme.typography.headlineMedium.copy(fontFamily = FontFamily.Serif), textAlign = TextAlign.Center)
+        Text(stringResource(if (count > 0) R.string.showing_up else R.string.all_caught_up), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
         Spacer(Modifier.height(16.dp))
         Text(if (count > 0) stringResource(R.string.reviewed_items, count) else stringResource(R.string.no_due_items), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(28.dp))

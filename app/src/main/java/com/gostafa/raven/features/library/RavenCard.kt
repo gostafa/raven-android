@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
+import com.gostafa.raven.core.designsystem.RavenDropdownMenu as DropdownMenu
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -69,29 +71,39 @@ internal fun CardRow(
     onDelete: () -> Unit,
     onPractice: () -> Unit,
     folderName: String? = null,
+    selecting: Boolean = false,
+    selected: Boolean = false,
+    onSelect: () -> Unit = {},
+    onStartSelection: () -> Unit = {},
+    onMove: (() -> Unit)? = null,
+    onCopy: (() -> Unit)? = null,
 ) {
     val summary = card.summary
     val parts = remember(card.parts) { card.parts.sortedBy { it.orderIndex } }
     var selectedId by rememberSaveable(summary.id) { mutableStateOf<String?>(null) }
+    LaunchedEffect(selecting) { if (selecting) { PreviewPlayback.pause(); selectedId = null } }
     val accent = recallColor(summary.recallPercent)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (folderName != null) Text(folderName, style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Surface(shape = RoundedCornerShape(10.dp), color = Color.Black,
-            border = BorderStroke(1.dp, accent.copy(alpha = 0.35f)), modifier = Modifier.fillMaxWidth()) {
+            border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) MaterialTheme.colorScheme.onSurface else accent.copy(alpha = 0.35f)),
+            modifier = Modifier.fillMaxWidth().combinedClickable(onClick = { if (selecting) onSelect() }, onLongClick = onStartSelection)) {
             BoxWithConstraints(Modifier.padding(6.dp)) {
                 val stacked = maxWidth + 12.dp < 320.dp || LocalConfiguration.current.fontScale >= 1.3f
                 val rows = if (stacked) parts.size.coerceAtLeast(1) else ((parts.size + 1) / 2).coerceAtLeast(1)
                 val bodyHeight = if (stacked) 180.dp * rows else maxOf(maxWidth * 1.25f - 48.dp, 160.dp * rows)
                 Column {
                     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        CardActions(onEdit, onPractice, onDelete)
+                        if (selecting) Checkbox(checked = selected, onCheckedChange = { onSelect() })
+                        else CardActions(onEdit, onPractice, onDelete, onMove, onCopy)
                         Spacer(Modifier.weight(1f))
                         val recallDescription = stringResource(R.string.card_recall_percent, summary.recallPercent)
                         Text(NumberFormat.getPercentInstance(LocalConfiguration.current.locales[0]).format(summary.recallPercent / 100.0), color = accent,
                             style = MaterialTheme.typography.labelLarge,
                             modifier = Modifier.semantics { contentDescription = recallDescription })
                     }
+                    Box {
                     Column(Modifier.fillMaxWidth().height(bodyHeight).clip(RoundedCornerShape(5.dp)).background(MaterialTheme.colorScheme.outline),
                         verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         if (parts.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -109,6 +121,8 @@ internal fun CardRow(
                             }
                         }
                     }
+                    if (selecting) Box(Modifier.matchParentSize().clickable(onClick = onSelect))
+                    }
                 }
             }
         }
@@ -119,13 +133,15 @@ internal fun CardRow(
 }
 
 @Composable
-private fun CardActions(onEdit: () -> Unit, onPractice: () -> Unit, onDelete: () -> Unit) {
+private fun CardActions(onEdit: () -> Unit, onPractice: () -> Unit, onDelete: () -> Unit, onMove: (() -> Unit)?, onCopy: (() -> Unit)?) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
             Icon(Icons.Default.MoreHoriz, stringResource(R.string.card_actions), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         DropdownMenu(expanded, onDismissRequest = { expanded = false }, containerColor = MaterialTheme.colorScheme.surfaceVariant) {
+            if (onMove != null) DropdownMenuItem(text = { Text(stringResource(R.string.move_to)) }, onClick = { expanded = false; PreviewPlayback.pause(); onMove() })
+            if (onCopy != null) DropdownMenuItem(text = { Text(stringResource(R.string.copy_cards)) }, onClick = { expanded = false; PreviewPlayback.pause(); onCopy() })
             listOf(R.string.edit to onEdit, R.string.practice_card to onPractice, R.string.delete to onDelete).forEach { (label, action) ->
                 DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = { expanded = false; PreviewPlayback.pause(); action() })
             }

@@ -8,11 +8,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
@@ -34,8 +38,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -43,8 +45,18 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.svg.SvgDecoder
 import com.gostafa.raven.R
-import com.gostafa.raven.core.model.matchesTags
+import com.gostafa.raven.core.model.FolderSort
+import com.gostafa.raven.core.model.selectFolders
+import com.gostafa.raven.core.model.reconcileSelection
+import com.gostafa.raven.core.designsystem.RavenOutlinedButton
+import com.gostafa.raven.core.designsystem.RavenAlertDialog
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Checkbox
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel,
@@ -54,6 +66,7 @@ fun LibraryScreen(
     reminderOffer: @Composable () -> Unit = {},
 ) {
     val state by viewModel.folders.collectAsStateWithLifecycle()
+    val archiveBusy by viewModel.archiveBusy.collectAsStateWithLifecycle()
     val folders = state.value.orEmpty()
     val gridState = rememberLazyGridState()
     var creatingFolder by rememberSaveable { mutableStateOf(false) }
@@ -62,20 +75,29 @@ fun LibraryScreen(
     var deletingFolderId by rememberSaveable { mutableStateOf<String?>(null) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var selectedTags by rememberSaveable { mutableStateOf(emptyList<String>()) }
-    val availableTags = folders.flatMap { it.tags }.map { it.lowercase() }.toSet()
+    var sort by rememberSaveable { mutableStateOf(FolderSort.DEFAULT) }
+    var selecting by rememberSaveable { mutableStateOf(false) }
+    var selection by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    var exportSelection by rememberSaveable { mutableStateOf<List<String>?>(null) }
+    var tagPicker by rememberSaveable { mutableStateOf(false) }
+    val availableTags = folders.flatMap { it.tags }.distinctBy { it.lowercase() }.toSet()
     LaunchedEffect(availableTags, state.value != null) {
         if (state.value != null && !state.failed) {
-            selectedTags = selectedTags.filter { it.lowercase() in availableTags }
+            selectedTags = selectedTags.filter { selected -> availableTags.any { it.equals(selected, ignoreCase = true) } }
         }
     }
-    val visibleFolders = folders.filter { matchesTags(it.tags, selectedTags) }
+    val locale = LocalConfiguration.current.locales[0]
+    val visibleFolders = selectFolders(folders, selectedTags, sort, locale)
+    LaunchedEffect(visibleFolders.map { it.id }, state.value != null) {
+        if (state.value != null && !state.failed) selection = reconcileSelection(selection, visibleFolders.map { it.id })
+    }
+    BackHandler(selecting) { selecting = false; selection = emptyList() }
     val toggleTag: (String) -> Unit = { tag ->
         selectedTags = if (selectedTags.any { it.equals(tag, ignoreCase = true) }) {
             selectedTags.filterNot { it.equals(tag, ignoreCase = true) }
         } else selectedTags + tag
     }
-    val windowWidth = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() }
-    val columns = if (windowWidth < 600.dp || LocalConfiguration.current.fontScale >= 1.5f) GridCells.Fixed(1) else GridCells.Adaptive(320.dp)
+    val columns = ravenGridColumns()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -112,9 +134,34 @@ fun LibraryScreen(
             )
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        LazyVerticalGrid(
+            columns = columns, state = gridState, modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+          item(key = "library_controls", span = { GridItemSpan(maxLineSpan) }) {
+           Column {
             reminderOffer()
-            ArchiveControls(viewModel, folders, exportFolderId, onExportHandled = { exportFolderId = null })
+            ArchiveControls(viewModel, folders, exportFolderId, onExportHandled = { exportFolderId = null },
+                exportSelection = exportSelection, onSelectionHandled = { exportSelection = null })
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.your_folders), style = MaterialTheme.typography.headlineLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SortPicker(sort, FolderSort.entries, ::folderSortLabel) { sort = it }
+                    RavenOutlinedButton(onClick = { tagPicker = true }, enabled = availableTags.isNotEmpty()) { Text(stringResource(R.string.filter_tags)) }
+                    RavenOutlinedButton(onClick = { selecting = !selecting; selection = emptyList() }, enabled = folders.isNotEmpty()) {
+                        Text(stringResource(if (selecting) R.string.done_selecting else R.string.select_folders))
+                    }
+                }
+                if (selecting) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.selected_count, selection.size), style = MaterialTheme.typography.labelLarge)
+                    TextButton(onClick = { selection = visibleFolders.map { it.id } }) { Text(stringResource(R.string.select_all_shown)) }
+                    TextButton(onClick = { selection = emptyList() }) { Text(stringResource(R.string.clear_selection)) }
+                    RavenOutlinedButton(onClick = { exportSelection = selection }, enabled = selection.isNotEmpty() && !archiveBusy) { Text(stringResource(R.string.export_selected)) }
+                }
+                ClipboardActions(viewModel)
+                Text(stringResource(R.string.results_count, visibleFolders.size), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             if (selectedTags.isNotEmpty()) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
                     Text(stringResource(R.string.filter_tags), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -122,23 +169,19 @@ fun LibraryScreen(
                     TextButton(onClick = { selectedTags = emptyList() }) { Text(stringResource(R.string.clear_all)) }
                 }
             }
+           }
+          }
             when {
-                state.failed -> LibraryMessage(stringResource(R.string.load_failed))
-                state.value == null -> LibraryLoading()
-                folders.isEmpty() -> LibraryMessage(
+                state.failed -> item(span = { GridItemSpan(maxLineSpan) }) { LibraryMessage(stringResource(R.string.load_failed), Modifier.height(240.dp)) }
+                state.value == null -> item(span = { GridItemSpan(maxLineSpan) }) { LibraryLoading(Modifier.height(240.dp)) }
+                folders.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) { LibraryMessage(
                     stringResource(R.string.no_folders),
+                    modifier = Modifier.height(240.dp),
                     icon = Icons.Default.Folder,
-                )
-                visibleFolders.isEmpty() -> LibraryMessage(stringResource(R.string.no_folders_matching_tags))
-                else -> LazyVerticalGrid(
-                    columns = columns,
-                    state = gridState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(visibleFolders, key = { it.id }) { folder ->
+                ) }
+                visibleFolders.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) { LibraryMessage(stringResource(R.string.no_folders_matching_tags), Modifier.height(240.dp)) }
+                else -> items(visibleFolders, key = { it.id }) { folder ->
+                      Column(Modifier.padding(horizontal = 20.dp)) {
                         FolderTile(
                             folder = folder,
                             onOpen = { onOpenFolder(folder.id) },
@@ -147,8 +190,11 @@ fun LibraryScreen(
                             onExport = { exportFolderId = folder.id },
                             selectedTags = selectedTags,
                             onTagClick = toggleTag,
+                            selecting = selecting, selected = folder.id in selection,
+                            onSelect = { selection = if (folder.id in selection) selection - folder.id else selection + folder.id },
+                            onStartSelection = { selecting = true; selection = (selection + folder.id).distinct() },
                         )
-                    }
+                      }
                 }
             }
         }
@@ -178,4 +224,13 @@ fun LibraryScreen(
         )
     }
     if (showSettings) SettingsDialog(viewModel, onDismiss = { showSettings = false })
+    if (tagPicker) RavenAlertDialog(onDismissRequest = { tagPicker = false }, title = { Text(stringResource(R.string.filter_tags)) },
+        text = { Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
+            availableTags.sorted().forEach { tag ->
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(selectedTags.any { it.equals(tag, true) }, role = Role.Checkbox, onValueChange = { toggleTag(tag) }), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = selectedTags.any { it.equals(tag, true) }, onCheckedChange = null)
+                    Text(tag, Modifier.padding(start = 12.dp))
+                }
+            }
+        } }, confirmButton = { TextButton(onClick = { tagPicker = false }) { Text(stringResource(R.string.done)) } })
 }

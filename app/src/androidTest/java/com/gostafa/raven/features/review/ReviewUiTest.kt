@@ -3,6 +3,8 @@ package com.gostafa.raven.features.review
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -93,13 +95,14 @@ class ReviewUiTest {
         val longState = original.copy(items = listOf(entry.copy(prompt = prompt)))
         compose.setContent {
             val configuration = android.content.res.Configuration(LocalConfiguration.current).apply { fontScale = 2f }
-            CompositionLocalProvider(LocalConfiguration provides configuration) {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalConfiguration provides configuration, LocalDensity provides Density(density.density, 2f)) {
                 RavenTheme { ReviewContent(longState, {}, {}, {}) }
             }
         }
         compose.onNodeWithText("Good").assertIsDisplayed()
         compose.onNodeWithText("Again").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Show hints").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Show hints").assertIsDisplayed().performClick()
         compose.onNodeWithText("Supporting hint").performScrollTo().assertIsDisplayed()
     }
 }

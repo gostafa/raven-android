@@ -2,6 +2,8 @@ package com.gostafa.raven.features.library
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.Checkbox
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -93,6 +95,10 @@ internal fun FolderTile(
     selectedTags: List<String>,
     onTagClick: (String) -> Unit,
     onExport: (() -> Unit)? = null,
+    selecting: Boolean = false,
+    selected: Boolean = false,
+    onSelect: () -> Unit = {},
+    onStartSelection: () -> Unit = {},
 ) {
     val outline = MaterialTheme.colorScheme.outline
     val rear = MaterialTheme.colorScheme.surfaceVariant
@@ -126,16 +132,16 @@ internal fun FolderTile(
             drawRoundRect(outline, Offset(inset, top), backSize, CornerRadius(radius), style = Stroke(1.dp.toPx()))
         }
         Surface(
-            onClick = onOpen,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().combinedClickable(onClick = { if (selecting) onSelect() else onOpen() }, onLongClick = onStartSelection),
             shape = shape,
             color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, outline),
+            border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) MaterialTheme.colorScheme.onSurface else outline),
         ) {
             Column(Modifier.fillMaxWidth().heightIn(min = 236.dp).padding(start = 18.dp, top = 44.dp, end = 18.dp, bottom = 18.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(folder.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    OverflowMenu(label = stringResource(R.string.folder_actions, folder.name), onEdit = onEdit, onDelete = onDelete, horizontal = true, onExport = onExport)
+                    if (selecting) Checkbox(checked = selected, onCheckedChange = { onSelect() })
+                    else OverflowMenu(label = stringResource(R.string.folder_actions, folder.name), onEdit = onEdit, onDelete = onDelete, horizontal = true, onExport = onExport)
                 }
                 if (folder.description.isNotBlank()) {
                     Text(folder.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -147,7 +153,7 @@ internal fun FolderTile(
                 )
                 Spacer(Modifier.height(24.dp))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    FolderTags(folder.tags, Modifier.weight(1f), selectedTags, onTagClick)
+                    FolderTags(folder.tags, Modifier.weight(1f), selectedTags, if (selecting) null else onTagClick)
                     FolderRecallRing(folder.completedCardCount, folder.cardCount)
                 }
             }

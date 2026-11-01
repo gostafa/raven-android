@@ -94,4 +94,21 @@ class CardEditorNavigationTest {
         compose.onNodeWithText(label(R.string.cancel)).performClick()
         compose.waitUntil(5_000) { compose.onAllNodesWithText(label(R.string.save_changes)).fetchSemanticsNodes().isEmpty() }
     }
+
+    @Test fun selectedCardIdsReachTheReviewScreenAndSurviveRecreation() {
+        val repository = dagger.hilt.android.EntryPointAccessors.fromApplication(
+            compose.activity.application, com.gostafa.raven.ReviewNavigationEntryPoint::class.java,
+        ).repository()
+        runBlocking { repository.saveCard(folderId, null, listOf(com.gostafa.raven.core.model.PartDraft(text = "Selected review prompt"))) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText(folder).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText(folder).performScrollTo().performClick()
+        compose.onNodeWithText("Select cards").performScrollTo().performClick()
+        compose.onNodeWithText("Select all shown").performScrollTo().performClick()
+        compose.onNodeWithText("Review selected").performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Close review").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Selected review prompt").assertIsDisplayed()
+        compose.activityRule.scenario.recreate()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Close review").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Selected review prompt").assertIsDisplayed()
+    }
 }

@@ -1,5 +1,6 @@
 package com.gostafa.raven.features.library
 
+import com.gostafa.raven.core.designsystem.RavenAlertDialog as AlertDialog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -18,7 +19,9 @@ import com.gostafa.raven.core.database.FolderSummary
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-internal fun ArchiveControls(viewModel: LibraryViewModel, folders: List<FolderSummary>, exportFolderId: String?, onExportHandled: () -> Unit) {
+internal fun ArchiveControls(viewModel: LibraryViewModel, folders: List<FolderSummary>, exportFolderId: String?, onExportHandled: () -> Unit,
+    exportSelection: List<String>? = null, onSelectionHandled: () -> Unit = {},
+) {
     var operation by rememberSaveable { mutableStateOf("") }
     var selected by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var mode by rememberSaveable { mutableStateOf("") }
@@ -38,6 +41,12 @@ internal fun ArchiveControls(viewModel: LibraryViewModel, folders: List<FolderSu
         if (exportFolderId != null) {
             if (!busy && !picking) { selected = listOf(exportFolderId); operation = "export" }
             onExportHandled()
+        }
+    }
+    LaunchedEffect(exportSelection) {
+        if (exportSelection != null) {
+            if (!busy && !picking) { selected = exportSelection; operation = "export" }
+            onSelectionHandled()
         }
     }
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {

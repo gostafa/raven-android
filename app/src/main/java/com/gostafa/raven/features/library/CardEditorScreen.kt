@@ -1,5 +1,8 @@
 package com.gostafa.raven.features.library
 
+import com.gostafa.raven.core.designsystem.RavenButton as Button
+import com.gostafa.raven.core.designsystem.RavenOutlinedButton as OutlinedButton
+import com.gostafa.raven.core.designsystem.RavenAlertDialog as AlertDialog
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -16,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import com.gostafa.raven.core.designsystem.RavenTextField as OutlinedTextField
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -84,7 +88,7 @@ internal fun CardEditorScreen(viewModel: CardEditorViewModel, onClosed: () -> Un
     Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding().padding(if (tablet) 24.dp else 0.dp), contentAlignment = Alignment.Center) {
         Surface(
             modifier = Modifier.widthIn(max = 760.dp).then(if (tablet) Modifier.heightIn(max = 900.dp) else Modifier).fillMaxSize(),
-            shape = if (tablet) RoundedCornerShape(28.dp) else RoundedCornerShape(0.dp),
+            shape = if (tablet) RoundedCornerShape(12.dp) else RoundedCornerShape(0.dp),
             color = MaterialTheme.colorScheme.background,
             border = if (tablet) BorderStroke(1.dp, MaterialTheme.colorScheme.outline) else null,
         ) {
@@ -123,9 +127,9 @@ internal fun CardEditorScreen(viewModel: CardEditorViewModel, onClosed: () -> Un
                                     onClick = { focusManager.clearFocus(); viewModel.save() },
                                     enabled = state.editable && !state.importing,
                                     modifier = Modifier.weight(1f).heightIn(min = if (compactKeyboard) 48.dp else 52.dp),
-                                    shape = RoundedCornerShape(14.dp),
+                                    shape = RoundedCornerShape(8.dp),
                                 ) {
-                                    if (state.saving || state.discarding) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onSurface)
+                                    if (state.saving || state.discarding) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                                     if (state.saving || state.discarding) Spacer(Modifier.width(8.dp))
                                     Text(stringResource(when {
                                         state.discarding -> R.string.discarding
@@ -229,7 +233,7 @@ private fun EditorPart(
     })
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         border = BorderStroke(1.dp, if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
     ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.numbered_part, index + 1, type), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })

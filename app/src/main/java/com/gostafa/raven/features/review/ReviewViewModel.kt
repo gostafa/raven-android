@@ -24,6 +24,7 @@ data class ReviewUiState(
     val saveFailed: Boolean = false,
     val mode: String = "due",
     val target: String? = null,
+    val cardIds: List<String> = emptyList(),
 ) {
     val current: ReviewItem? get() = items.getOrNull(index)
     val complete: Boolean get() = !loading && !loadFailed && current == null
@@ -40,20 +41,21 @@ class ReviewViewModel @Inject constructor(
     private var sessionJob: Job? = null
     private var started = false
 
-    fun begin(mode: String, target: String?, retry: Boolean = false) {
-        if (started && !retry && _state.value.mode == mode && _state.value.target == target) return
+    fun begin(mode: String, target: String?, retry: Boolean = false, cardIds: List<String> = emptyList()) {
+        if (started && !retry && _state.value.mode == mode && _state.value.target == target && _state.value.cardIds == cardIds) return
         started = true
         sessionJob?.cancel()
-        _state.value = ReviewUiState(loading = true, mode = mode, target = target)
+        _state.value = ReviewUiState(loading = true, mode = mode, target = target, cardIds = cardIds)
         sessionJob = viewModelScope.launch {
             try {
                 val items = when (mode) {
+                    "selection" -> repository.queueCards(cardIds)
                     "card" -> target?.let { repository.queueCard(it) }.orEmpty()
                     "folder" -> target?.let { repository.queueFolder(it) }.orEmpty()
                     "due-card" -> target?.let { repository.queueDueCard(it) }.orEmpty()
                     else -> repository.queueDue()
                 }
-                _state.value = ReviewUiState(items = items, loading = false, mode = mode, target = target)
+                _state.value = ReviewUiState(items = items, loading = false, mode = mode, target = target, cardIds = cardIds)
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 _state.value = _state.value.copy(loading = false, loadFailed = true)
@@ -61,7 +63,7 @@ class ReviewViewModel @Inject constructor(
         }
     }
 
-    fun retry() = begin(_state.value.mode, _state.value.target, retry = true)
+    fun retry() = begin(_state.value.mode, _state.value.target, retry = true, cardIds = _state.value.cardIds)
 
     fun visibleCard(cardId: String?) {
         activeReview.show(cardId)
@@ -75,7 +77,7 @@ class ReviewViewModel @Inject constructor(
         _state.value = snapshot.copy(submitting = true, saveFailed = false)
         sessionJob = viewModelScope.launch {
             try {
-                repository.rate(current.prompt.id, rating, practice = snapshot.mode in setOf("card", "folder"))
+                repository.rate(current.prompt.id, rating, practice = snapshot.mode in setOf("card", "folder", "selection"))
                 _state.value = _state.value.copy(index = snapshot.index + 1, submitting = false, saveFailed = false)
             } catch (error: Exception) {
                 if (error is CancellationException) throw error

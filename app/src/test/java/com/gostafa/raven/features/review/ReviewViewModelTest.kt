@@ -75,9 +75,22 @@ class ReviewViewModelTest {
             assertEquals(true, repo.practice)
         }
     }
+    @Test fun selectedCardsAreDeduplicatedAndUsePracticeRulesAfterRetry() = runTest {
+        val repo = ReviewRepository().apply { failLoad = true }
+        val vm = ReviewViewModel(repo)
+        vm.begin("selection", null, cardIds = listOf("b", "a", "b")); runCurrent()
+        assertTrue(vm.state.value.loadFailed)
+        repo.failLoad = false
+        vm.retry(); runCurrent()
+        assertEquals(listOf("b", "a"), vm.state.value.items.map { it.content.card.id })
+        vm.rate(Rating.GOOD); runCurrent()
+        assertEquals(true, repo.practice)
+        assertEquals("a", vm.state.value.current!!.content.card.id)
+    }
 }
 
 private class ReviewRepository : RavenRepository {
+    override suspend fun transferCards(input: CardTransferInput): CardTransferResult = error("Not used by review tests")
     var loads = 0
     var ratings = 0
     var practice: Boolean? = null

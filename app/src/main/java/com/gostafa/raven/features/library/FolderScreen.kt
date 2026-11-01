@@ -1,20 +1,24 @@
 package com.gostafa.raven.features.library
 
+import androidx.activity.compose.BackHandler
+
+import com.gostafa.raven.core.designsystem.RavenOutlinedButton as OutlinedButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import com.gostafa.raven.core.model.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,13 +45,17 @@ fun FolderScreen(
     onPracticeCard: (String) -> Unit,
     onCreateCard: (String) -> Unit,
     onEditCard: (String, String) -> Unit,
+    onReviewSelection: (List<String>) -> Unit = {},
 ) {
     val foldersFlow = remember(viewModel, folderId) { viewModel.observeFolders() }
     val folders by foldersFlow.collectAsStateWithLifecycle(initialValue = LibraryData())
     val folder = folders.value?.firstOrNull { it.id == folderId }
     val cardsFlow = remember(viewModel, folderId) { viewModel.observeCards(folderId) }
     val cards by cardsFlow.collectAsStateWithLifecycle(initialValue = LibraryData<List<CardPreview>>())
-    val listState = rememberLazyListState()
+    val listState = rememberLazyGridState()
+    val browser = rememberCardBrowserState(folderId)
+    BackHandler(browser.selecting) { browser.exitSelection() }
+    val visibleCards = selectCards(cards.value.orEmpty(), browser.sort, browser.kinds.toSet(), RecallRange(browser.minimum, browser.maximum))
     var editingFolder by rememberSaveable(folderId) { mutableStateOf(false) }
     var deletingFolder by rememberSaveable(folderId) { mutableStateOf(false) }
     var deletingCardId by rememberSaveable(folderId) { mutableStateOf<String?>(null) }
@@ -78,18 +86,22 @@ fun FolderScreen(
                 icon = Icons.Default.Folder,
                 action = { TextButton(onClick = onBack) { Text(stringResource(R.string.return_to_library)) } },
             )
-            else -> LazyColumn(
+            else -> LazyVerticalGrid(
+                columns = ravenGridColumns(),
                 state = listState,
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item(key = "folder_header") {
+                item(key = "folder_header", span = { GridItemSpan(maxLineSpan) }) {
                     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(folder.name, style = MaterialTheme.typography.headlineLarge)
                         if (folder.tags.isNotEmpty()) FolderTags(folder.tags)
                         if (folder.description.isNotBlank()) {
                             Text(folder.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+                        CardBrowserToolbar(browser, visibleCards, viewModel, onReviewSelection, folderId, dataReady = cards.value != null && !cards.failed)
                         Text(
                             pluralStringResource(R.plurals.card_count, folder.cardCount, folder.cardCount) + " · " + stringResource(R.string.due_count, folder.dueCount),
                             style = MaterialTheme.typography.bodyMedium,
@@ -107,22 +119,27 @@ fun FolderScreen(
                     }
                 }
                 when {
-                    cards.failed -> item { Text(stringResource(R.string.load_failed), color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    cards.value == null -> item { LibraryLoading(Modifier.padding(32.dp)) }
-                    cards.value.orEmpty().isEmpty() -> item {
+                    cards.failed -> item(span = { GridItemSpan(maxLineSpan) }) { Text(stringResource(R.string.load_failed), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    cards.value == null -> item(span = { GridItemSpan(maxLineSpan) }) { LibraryLoading(Modifier.padding(32.dp)) }
+                    visibleCards.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
                         Text(
-                            stringResource(R.string.no_cards),
+                            stringResource(if (cards.value.orEmpty().isEmpty()) R.string.no_cards else R.string.no_cards_matching_filters),
                             modifier = Modifier.padding(vertical = 32.dp),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    else -> items(cards.value.orEmpty(), key = { it.summary.id }) { card ->
+                    else -> items(visibleCards, key = { it.summary.id }) { card ->
                         CardRow(
                             card = card,
                             onEdit = { onEditCard(folderId, card.summary.id) },
                             onDelete = { deletingCardId = card.summary.id },
                             onPractice = { onPracticeCard(card.summary.id) },
+                            selecting = browser.selecting, selected = card.summary.id in browser.selected,
+                            onSelect = { browser.toggle(card.summary.id) },
+                            onStartSelection = { browser.selecting = true; browser.selected = (browser.selected + card.summary.id).distinct() },
+                            onMove = { viewModel.requestMove(listOf(CardReference(card.summary.folderId, card.summary.id))) },
+                            onCopy = { viewModel.copyCards(listOf(CardReference(card.summary.folderId, card.summary.id))) },
                         )
                     }
                 }

@@ -91,7 +91,7 @@ class CardEditorUiTest {
             assertEquals(listOf("B", "A"), vm.state.value.parts.map { it.text })
             assertFalse(vm.state.value.parts.first().rememberThis)
         }
-        compose.onNodeWithContentDescription("Remove part 2").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Remove part 2").performScrollTo().assertIsDisplayed().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
         compose.runOnIdle { assertEquals(second, vm.state.value.parts.single().id) }
         compose.onNodeWithText("B", substring = false).assertExists()
     }

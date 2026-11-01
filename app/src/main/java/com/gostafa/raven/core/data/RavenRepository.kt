@@ -43,10 +43,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import com.gostafa.raven.core.model.CardReference
+import com.gostafa.raven.core.model.CardTransferInput
+import com.gostafa.raven.core.model.CardTransferResult
+import com.gostafa.raven.core.model.CardTransferEntry
+import com.gostafa.raven.core.model.TransferOperation
+import kotlinx.coroutines.NonCancellable
 
 class CardUnavailableException : IllegalStateException("Card is no longer available")
 
 interface RavenRepository {
+    suspend fun transferCards(input: CardTransferInput): CardTransferResult
+    suspend fun queueCards(cardIds: List<String>): List<ReviewItem> = cardIds.distinct().flatMap { queueCard(it) }
     fun observeFolders(): Flow<List<FolderSummary>>
     fun observeCards(folderId: String): Flow<List<CardSummary>>
     fun searchCards(query: String): Flow<List<CardSummary>>
@@ -78,6 +86,66 @@ class RoomRavenRepository @Inject constructor(
     private val reminders: ReminderInvalidator = ReminderInvalidator {},
     private val dueTimeRefresh: DueTimeRefresh = DueTimeRefresh(),
 ) : RavenRepository {
+    override suspend fun transferCards(input: CardTransferInput): CardTransferResult {
+        require(input.sources.isNotEmpty()) { "Choose at least one card" }
+        val sources = input.sources.distinct()
+        // Files are prepared before the atomic database commit and owned by this operation until it succeeds.
+        val staged = mutableListOf<com.gostafa.raven.core.media.StoredMedia>()
+        var committed = false
+        try {
+            val snapshots = database.withTransaction {
+                check(folders.get(input.destinationFolderId) != null) { "Destination folder is no longer available" }
+                sources.map { reference ->
+                    val card = cards.get(reference.cardId) ?: throw CardUnavailableException()
+                    check(card.folderId == reference.folderId) { "A source card has moved. Select it again." }
+                    card to parts.forCard(card.id)
+                }
+            }
+            val copiedMedia = mutableMapOf<String, com.gostafa.raven.core.media.StoredMedia>()
+            if (input.operation == TransferOperation.COPY) {
+                snapshots.flatMap { it.second }.mapNotNull { it.mediaPath }.distinct().forEach { path ->
+                    val source = mediaStorage.file(path)
+                    check(source.isFile) { "A media file is unavailable" }
+                    val mime = snapshots.flatMap { it.second }.first { it.mediaPath == path }.mimeType ?: "application/octet-stream"
+                    mediaStorage.copy(path, mime).also { staged += it; copiedMedia[path] = it }
+                }
+            }
+            val result = database.withTransaction {
+                check(folders.get(input.destinationFolderId) != null) { "Destination folder is no longer available" }
+                val now = System.currentTimeMillis()
+                val entries = snapshots.mapIndexed { index, (snapshot, oldParts) ->
+                    check(cards.get(snapshot.id) == snapshot && parts.forCard(snapshot.id) == oldParts) {
+                        "A source card changed. Select it again."
+                    }
+                    val source = sources[index]
+                    if (input.operation == TransferOperation.MOVE) {
+                        if (snapshot.folderId != input.destinationFolderId) cards.upsert(snapshot.copy(folderId = input.destinationFolderId, updatedAt = now))
+                        CardTransferEntry(source, CardReference(input.destinationFolderId, snapshot.id))
+                    } else {
+                        val id = UUID.randomUUID().toString()
+                        cards.upsert(snapshot.copy(id = id, folderId = input.destinationFolderId, updatedAt = now))
+                        oldParts.forEach { old ->
+                            val partId = UUID.randomUUID().toString()
+                            parts.upsert(old.copy(id = partId, cardId = id, mediaPath = old.mediaPath?.let { copiedMedia.getValue(it).relativePath }))
+                            history.forPart(old.id).forEach { review -> history.insert(review.copy(id = UUID.randomUUID().toString(), partId = partId)) }
+                            database.archiveStateDao().get(old.id)?.let { state -> database.archiveStateDao().upsert(state.copy(partId = partId)) }
+                        }
+                        CardTransferEntry(source, CardReference(input.destinationFolderId, id))
+                    }
+                }
+                staged.forEach { media.upsert(MediaEntity(UUID.randomUUID().toString(), it.relativePath, it.mimeType, it.byteSize, now)) }
+                CardTransferResult(entries)
+            }
+            committed = true
+            reminders.changed()
+            return result
+        } finally {
+            if (!committed) withContext(NonCancellable + Dispatchers.IO) {
+                // Cancellation can arrive as Room returns a committed transaction. Keep files already owned by it.
+                staged.forEach { if (!parts.hasMediaReference(it.relativePath)) mediaStorage.delete(it.relativePath) }
+            }
+        }
+    }
     // Database changes restart the clock; due boundaries refresh queries even without writes.
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private fun dueClock(): Flow<Long> = combine(parts.observeReviewable(), dueTimeRefresh.changes) { reviewable, _ -> reviewable }.flatMapLatest { reviewable ->

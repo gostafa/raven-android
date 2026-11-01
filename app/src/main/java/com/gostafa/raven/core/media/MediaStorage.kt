@@ -18,6 +18,33 @@ import kotlin.coroutines.coroutineContext
 data class StoredMedia(val relativePath: String, val mimeType: String, val byteSize: Long, val originalName: String? = null)
 
 class MediaStorage @Inject constructor(@ApplicationContext private val context: Context) {
+    suspend fun copy(relativePath: String, mimeType: String): StoredMedia {
+        var target: File? = null
+        try {
+            return withContext(Dispatchers.IO) {
+                val source = file(relativePath)
+                check(source.isFile) { "A media file is unavailable" }
+                val directory = File(context.filesDir, MEDIA_DIRECTORY).apply { mkdirs() }
+                val destination = File(directory, "${UUID.randomUUID()}.${source.extension.ifBlank { "bin" }}")
+                target = destination
+                source.inputStream().use { input ->
+                    destination.outputStream().use { output ->
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        while (true) {
+                            coroutineContext.ensureActive()
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            output.write(buffer, 0, count)
+                        }
+                    }
+                }
+                StoredMedia("$MEDIA_DIRECTORY/${destination.name}", mimeType, destination.length())
+            }
+        } catch (error: Exception) {
+            withContext(NonCancellable + Dispatchers.IO) { target?.delete() }
+            throw error
+        }
+    }
     suspend fun import(uri: Uri, expectedType: String): StoredMedia {
         var importedFile: File? = null
         try {

@@ -35,6 +35,8 @@ import com.gostafa.raven.features.library.CardEditorScreen
 import com.gostafa.raven.features.library.CardEditorViewModel
 import com.gostafa.raven.features.review.ReviewScreen
 import java.util.Locale
+import com.gostafa.raven.core.designsystem.RavenTheme
+import com.gostafa.raven.features.library.CardTransferHost
 
 @Composable
 fun RavenRoot(
@@ -70,10 +72,17 @@ fun RavenRoot(
         LocalResources provides localizedContext.resources,
         LocalLayoutDirection provides layoutDirection,
     ) {
+      RavenTheme {
         val navController = rememberNavController()
+        val reviewSelection: (List<String>) -> Unit = { ids ->
+            if (ids.isNotEmpty()) {
+                navController.navigate("review/selection/_")
+                navController.currentBackStackEntry?.savedStateHandle?.set("selected_card_ids", ArrayList(ids.distinct()))
+            }
+        }
         LaunchedEffect(reviewRequest) {
             reviewRequest?.let {
-                navController.navigate("review/due-card/" + Uri.encode(it.cardId)) {
+                navController.navigate(if (it.cardId.isEmpty()) "review/due/_" else "review/due-card/" + Uri.encode(it.cardId)) {
                     popUpTo("library")
                     launchSingleTop = true
                 }
@@ -104,6 +113,7 @@ fun RavenRoot(
                         onPracticeCard = { navController.navigate("review/card/" + Uri.encode(it)) },
                         onCreateCard = { navController.navigate("card-editor/" + Uri.encode(it)) },
                         onEditCard = { folder, card -> navController.navigate("card-editor/" + Uri.encode(folder) + "?cardId=" + Uri.encode(card)) },
+                        onReviewSelection = reviewSelection,
                     )
                 }
             }
@@ -113,6 +123,8 @@ fun RavenRoot(
                     onBack = { navController.popBackStack() },
                     onPracticeCard = { navController.navigate("review/card/" + Uri.encode(it)) },
                     onEditCard = { folder, card -> navController.navigate("card-editor/" + Uri.encode(folder) + "?cardId=" + Uri.encode(card)) },
+                    onOpenFolder = { navController.navigate("folder/" + Uri.encode(it)) },
+                    onReviewSelection = reviewSelection,
                 )
             }
             composable(
@@ -135,8 +147,11 @@ fun RavenRoot(
                     mode = entry.arguments?.getString("mode") ?: "due",
                     target = entry.arguments?.getString("target")?.takeUnless { it == "_" },
                     onExit = { navController.popBackStack() },
+                    cardIds = entry.savedStateHandle.get<ArrayList<String>>("selected_card_ids").orEmpty(),
                 )
             }
         }
+        CardTransferHost(viewModel)
+      }
     }
 }
