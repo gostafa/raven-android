@@ -23,6 +23,7 @@ data class FsrsState(
     val learningStep: Int = 0,
 )
 
+@Serializable
 data class PartDraft(
     val id: String? = null,
     val type: PartType = PartType.TEXT,

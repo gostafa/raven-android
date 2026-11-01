@@ -28,6 +28,8 @@ import com.gostafa.raven.features.library.LibraryScreen
 import com.gostafa.raven.features.library.LibraryViewModel
 import com.gostafa.raven.features.library.FolderScreen
 import com.gostafa.raven.features.library.SearchScreen
+import com.gostafa.raven.features.library.CardEditorScreen
+import com.gostafa.raven.features.library.CardEditorViewModel
 import com.gostafa.raven.features.review.ReviewScreen
 import java.util.Locale
 
@@ -83,6 +85,8 @@ fun RavenRoot(viewModel: LibraryViewModel = hiltViewModel()) {
                         onBack = { navController.popBackStack() },
                         onPracticeFolder = { navController.navigate("review/folder/" + Uri.encode(it)) },
                         onPracticeCard = { navController.navigate("review/card/" + Uri.encode(it)) },
+                        onCreateCard = { navController.navigate("card-editor/" + Uri.encode(it)) },
+                        onEditCard = { folder, card -> navController.navigate("card-editor/" + Uri.encode(folder) + "?cardId=" + Uri.encode(card)) },
                     )
                 }
             }
@@ -91,7 +95,17 @@ fun RavenRoot(viewModel: LibraryViewModel = hiltViewModel()) {
                     viewModel = viewModel,
                     onBack = { navController.popBackStack() },
                     onPracticeCard = { navController.navigate("review/card/" + Uri.encode(it)) },
+                    onEditCard = { folder, card -> navController.navigate("card-editor/" + Uri.encode(folder) + "?cardId=" + Uri.encode(card)) },
                 )
+            }
+            composable(
+                route = "card-editor/{folderId}?cardId={cardId}",
+                arguments = listOf(
+                    navArgument("folderId") { type = NavType.StringType },
+                    navArgument("cardId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                ),
+            ) { entry ->
+                CardEditorScreen(hiltViewModel<CardEditorViewModel>(entry), onClosed = { navController.popBackStack() })
             }
             composable(
                 route = "review/{mode}/{target}",

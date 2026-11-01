@@ -8,6 +8,7 @@ import com.gostafa.raven.core.database.RavenDatabase
 import com.gostafa.raven.core.database.ReviewHistoryEntity
 import com.gostafa.raven.core.media.MediaStorage
 import com.gostafa.raven.core.model.PartDraft
+import com.gostafa.raven.core.model.PartType
 import com.gostafa.raven.core.model.Rating
 import com.gostafa.raven.core.scheduler.Fsrs6Scheduler
 import java.util.UUID
@@ -51,6 +52,46 @@ class LibraryRepositoryTest {
         assertEquals(createdAt, db.folderDao().get(id)!!.createdAt)
         repository.saveFolder(id, "Renamed", "", emptyList())
         assertTrue(repository.observeFolders().first().single().tags.isEmpty())
+    }
+
+    @Test fun invalidCardContentIsRejectedWithoutWritingCards() = runBlocking {
+        val folder = repository.saveFolder(null, "Cards", "", emptyList())
+        listOf(emptyList(), listOf(PartDraft(text = " \n ")), listOf(PartDraft(type = PartType.IMAGE)),
+            listOf(PartDraft(type = PartType.AUDIO, mediaPath = "media/missing.audio"))).forEach { drafts ->
+            val result = runCatching { repository.saveCard(folder, null, drafts) }
+            assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        }
+        assertTrue(repository.observeCards(folder).first().isEmpty())
+    }
+
+    @Test fun deletedCardCannotBeRecreatedBySavingStaleEditor() = runBlocking {
+        val folder = repository.saveFolder(null, "Cards", "", emptyList())
+        repository.saveCard(folder, null, listOf(PartDraft(text = "A")))
+        val card = repository.observeCards(folder).first().single()
+        repository.deleteCard(card.id)
+        assertTrue(runCatching { repository.saveCard(folder, card.id, listOf(PartDraft(text = "Edited"))) }.isFailure)
+        assertTrue(repository.observeCards(folder).first().isEmpty())
+    }
+
+    @Test fun cleanupDeletesOnlyUnreferencedMedia() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val storage = MediaStorage(context)
+        val folder = repository.saveFolder(null, "Cards", "", emptyList())
+        val directory = java.io.File(context.filesDir, "media").apply { mkdirs() }
+        val used = java.io.File.createTempFile("used-", ".png", directory).apply { writeText("image") }
+        val unused = java.io.File.createTempFile("unused-", ".png", directory).apply { writeText("image") }
+        val usedPath = "media/${used.name}"
+        val unusedPath = "media/${unused.name}"
+        try {
+            repository.saveMedia(usedPath, "image/png", used.length())
+            repository.saveMedia(unusedPath, "image/png", unused.length())
+            repository.saveCard(folder, null, listOf(PartDraft(type = PartType.IMAGE, mediaPath = usedPath)))
+            repository.discardMedia(listOf(usedPath, unusedPath))
+            assertTrue(storage.file(usedPath).exists())
+            assertTrue(db.mediaDao().getByPath(usedPath) != null)
+            assertTrue(!storage.file(unusedPath).exists())
+            assertEquals(null, db.mediaDao().getByPath(unusedPath))
+        } finally { used.delete(); unused.delete() }
     }
 
     @Test fun recallUpdatesReactivelyForFolderCardsAndSearch() = runBlocking {

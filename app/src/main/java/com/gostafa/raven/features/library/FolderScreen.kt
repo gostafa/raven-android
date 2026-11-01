@@ -39,6 +39,8 @@ fun FolderScreen(
     onBack: () -> Unit,
     onPracticeFolder: (String) -> Unit,
     onPracticeCard: (String) -> Unit,
+    onCreateCard: (String) -> Unit,
+    onEditCard: (String, String) -> Unit,
 ) {
     val foldersFlow = remember(viewModel, folderId) { viewModel.observeFolders() }
     val folders by foldersFlow.collectAsStateWithLifecycle(initialValue = LibraryData())
@@ -48,8 +50,6 @@ fun FolderScreen(
     val listState = rememberLazyListState()
     var editingFolder by rememberSaveable(folderId) { mutableStateOf(false) }
     var deletingFolder by rememberSaveable(folderId) { mutableStateOf(false) }
-    var creatingCard by rememberSaveable(folderId) { mutableStateOf(false) }
-    var editingCardId by rememberSaveable(folderId) { mutableStateOf<String?>(null) }
     var deletingCardId by rememberSaveable(folderId) { mutableStateOf<String?>(null) }
 
     Scaffold(
@@ -66,7 +66,7 @@ fun FolderScreen(
             }
         },
         bottomBar = {
-            if (folder != null) BottomCreateButton(stringResource(R.string.new_card), onClick = { creatingCard = true })
+            if (folder != null) BottomCreateButton(stringResource(R.string.new_card), onClick = { onCreateCard(folderId) })
         },
     ) { padding ->
         when {
@@ -120,7 +120,7 @@ fun FolderScreen(
                     else -> items(cards.value.orEmpty(), key = { it.id }) { card ->
                         CardRow(
                             card = card,
-                            onEdit = { editingCardId = card.id },
+                            onEdit = { onEditCard(folderId, card.id) },
                             onDelete = { deletingCardId = card.id },
                             onPractice = { onPracticeCard(card.id) },
                         )
@@ -139,14 +139,6 @@ fun FolderScreen(
             onDismiss = { deletingFolder = false },
             onDelete = { viewModel.deleteFolder(folderId) },
             onDeleted = onBack,
-        )
-    }
-    if (folder != null && (creatingCard || editingCardId != null)) {
-        CardEditorDialog(
-            cardId = editingCardId,
-            folderId = folderId,
-            viewModel = viewModel,
-            onDismiss = { creatingCard = false; editingCardId = null },
         )
     }
     deletingCardId?.let { id ->

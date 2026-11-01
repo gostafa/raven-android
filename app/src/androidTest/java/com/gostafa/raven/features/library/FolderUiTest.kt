@@ -82,7 +82,7 @@ class FolderUiTest {
         val repository = object : RavenRepository by baseRepository {
             override suspend fun saveFolder(id: String?, name: String, description: String, tags: List<String>): String = error("Save failed")
         }
-        val vm = LibraryViewModel(repository, media, settings)
+        val vm = LibraryViewModel(repository, settings)
         val restoration = StateRestorationTester(compose)
         restoration.setContent {
             RavenTheme { FolderEditorDialog(null, vm, onDismiss = {}, onSaved = {}) }
@@ -108,7 +108,7 @@ class FolderUiTest {
             baseRepository.saveFolder(null, "English folder", "", listOf("Language", "English"))
             baseRepository.saveFolder(null, "Spanish folder", "", listOf("Language", "Spanish"))
         }
-        val vm = LibraryViewModel(baseRepository, media, settings)
+        val vm = LibraryViewModel(baseRepository, settings)
         val restoration = StateRestorationTester(compose)
         restoration.setContent {
             RavenTheme { LibraryScreen(vm, onOpenFolder = {}, onSearch = {}, onReviewDue = {}) }
@@ -135,7 +135,7 @@ class FolderUiTest {
                 return "saved"
             }
         }
-        val vm = LibraryViewModel(repository, media, settings)
+        val vm = LibraryViewModel(repository, settings)
         compose.setContent {
             RavenTheme { FolderEditorDialog(null, vm, onDismiss = { dismissed = true }, onSaved = { savedId = it }) }
         }

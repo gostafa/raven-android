@@ -28,8 +28,12 @@ import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+
+class CardUnavailableException : IllegalStateException("Card is no longer available")
 
 interface RavenRepository {
     fun observeFolders(): Flow<List<FolderSummary>>
@@ -45,6 +49,7 @@ interface RavenRepository {
     suspend fun queueFolder(folderId: String): List<ReviewItem>
     suspend fun rate(partId: String, rating: Rating, practice: Boolean = false)
     suspend fun saveMedia(relativePath: String, mimeType: String, byteSize: Long)
+    suspend fun discardMedia(paths: List<String>)
 }
 
 class RoomRavenRepository @Inject constructor(
@@ -100,16 +105,29 @@ class RoomRavenRepository @Inject constructor(
 
     override suspend fun saveCard(folderId: String, cardId: String?, drafts: List<PartDraft>) {
         require(drafts.isNotEmpty()) { "A card must contain at least one part" }
+        val valid = withContext(Dispatchers.IO) {
+            drafts.all { draft ->
+                if (draft.type == PartType.TEXT) draft.text.isNotBlank()
+                else draft.mediaPath?.takeIf { it.isNotBlank() }?.let { mediaStorage.file(it).isFile } == true
+            }
+        }
+        require(valid) {
+            "Each part must contain text or attached media"
+        }
+        require(drafts.mapNotNull { it.id }.distinct().size == drafts.count { it.id != null }) { "Duplicate part IDs" }
         val now = System.currentTimeMillis()
         val oldMediaPaths = cardId?.let { parts.forCard(it).mapNotNull(ContentPartEntity::mediaPath) }.orEmpty()
         database.withTransaction {
             val existing = if (cardId == null) null else cards.get(cardId)
+            if (cardId != null && existing == null) throw CardUnavailableException()
+            check(folders.get(existing?.folderId ?: folderId) != null) { "Folder is no longer available" }
             val savedId = existing?.id ?: UUID.randomUUID().toString()
             cards.upsert(CardEntity(savedId, existing?.folderId ?: folderId, existing?.createdAt ?: now, now))
             val oldParts = parts.forCard(savedId).associateBy { it.id }
             val saved = drafts.mapIndexed { index, draft ->
                 val id = draft.id ?: UUID.randomUUID().toString()
                 val old = oldParts[id]
+                check(parts.get(id)?.cardId.let { it == null || it == savedId }) { "Part belongs to another card" }
                 val mediaPath = draft.mediaPath ?: old?.mediaPath
                 val state = old?.fsrsState() ?: FsrsState(dueAt = now)
                 ContentPartEntity(
@@ -133,7 +151,13 @@ class RoomRavenRepository @Inject constructor(
             oldParts.keys.filterNot { it in retainedIds }.forEach { parts.delete(it) }
             parts.upsertAll(saved)
         }
-        cleanupMedia(oldMediaPaths)
+        // The card has committed. Cleanup failure must not turn a successful save into a retry.
+        try {
+            cleanupMedia(oldMediaPaths)
+        } catch (error: Exception) {
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            android.util.Log.w("RavenRepository", "Could not clean up replaced media", error)
+        }
     }
 
     override suspend fun deleteCard(id: String) {
@@ -195,6 +219,8 @@ class RoomRavenRepository @Inject constructor(
     override suspend fun saveMedia(relativePath: String, mimeType: String, byteSize: Long) {
         media.upsert(MediaEntity(UUID.randomUUID().toString(), relativePath, mimeType, byteSize, System.currentTimeMillis()))
     }
+
+    override suspend fun discardMedia(paths: List<String>) = cleanupMedia(paths)
 
     private suspend fun cleanupMedia(paths: List<String>) {
         paths.distinct().forEach { path ->

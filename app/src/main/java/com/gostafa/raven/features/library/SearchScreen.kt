@@ -42,11 +42,10 @@ fun SearchScreen(
     viewModel: LibraryViewModel,
     onBack: () -> Unit,
     onPracticeCard: (String) -> Unit,
+    onEditCard: (String, String) -> Unit,
 ) {
     val folders by viewModel.folders.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
-    var editingCardId by rememberSaveable { mutableStateOf<String?>(null) }
-    var editingFolderId by rememberSaveable { mutableStateOf<String?>(null) }
     var deletingCardId by rememberSaveable { mutableStateOf<String?>(null) }
     var focusedOnce by rememberSaveable { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
@@ -86,8 +85,7 @@ fun SearchScreen(
                         folderNames = folders.value.orEmpty().associate { it.id to it.name },
                         onEdit = { card ->
                             focusManager.clearFocus()
-                            editingCardId = card.id
-                            editingFolderId = card.folderId
+                            onEditCard(card.folderId, card.id)
                         },
                         onDelete = { card -> focusManager.clearFocus(); deletingCardId = card.id },
                         onPractice = { id -> focusManager.clearFocus(); onPracticeCard(id) },
@@ -95,11 +93,6 @@ fun SearchScreen(
                 }
             }
         }
-    }
-    val cardId = editingCardId
-    val folderId = editingFolderId
-    if (cardId != null && folderId != null) {
-        CardEditorDialog(cardId, folderId, viewModel, onDismiss = { editingCardId = null; editingFolderId = null })
     }
     deletingCardId?.let { id ->
         DeleteConfirmation(

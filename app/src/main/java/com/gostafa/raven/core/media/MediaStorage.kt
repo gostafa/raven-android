@@ -9,26 +9,50 @@ import java.io.FileOutputStream
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.coroutineContext
 
 data class StoredMedia(val relativePath: String, val mimeType: String, val byteSize: Long)
 
 class MediaStorage @Inject constructor(@ApplicationContext private val context: Context) {
-    suspend fun import(uri: Uri, expectedType: String): StoredMedia = withContext(Dispatchers.IO) {
-        val mimeType = context.contentResolver.getType(uri) ?: expectedType
-        val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)
-            ?: when (expectedType) {
-                "image/*" -> "img"
-                "audio/*" -> "audio"
-                else -> "video"
+    suspend fun import(uri: Uri, expectedType: String): StoredMedia {
+        var importedFile: File? = null
+        try {
+            return withContext(Dispatchers.IO) {
+                val mimeType = context.contentResolver.getType(uri) ?: expectedType
+                require(mimeType.startsWith(expectedType.substringBefore('/') + "/")) { "Unexpected media type" }
+                val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)
+                    ?: when (expectedType) {
+                        "image/*" -> "img"
+                        "audio/*" -> "audio"
+                        else -> "video"
+                    }
+                val directory = File(context.filesDir, MEDIA_DIRECTORY).apply { mkdirs() }
+                val name = "${UUID.randomUUID()}.$extension"
+                val target = File(directory, name)
+                importedFile = target
+                val input = context.contentResolver.openInputStream(uri)
+                    ?: throw IllegalStateException("Unable to open selected media")
+                input.use { source ->
+                    FileOutputStream(target).use { output ->
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        while (true) {
+                            coroutineContext.ensureActive()
+                            val count = source.read(buffer)
+                            if (count < 0) break
+                            output.write(buffer, 0, count)
+                        }
+                    }
+                }
+                require(target.length() > 0) { "Selected file is empty" }
+                StoredMedia("$MEDIA_DIRECTORY/$name", mimeType, target.length())
             }
-        val directory = File(context.filesDir, MEDIA_DIRECTORY).apply { mkdirs() }
-        val name = "${UUID.randomUUID()}.$extension"
-        val target = File(directory, name)
-        val input = context.contentResolver.openInputStream(uri)
-            ?: throw IllegalStateException("Unable to open selected media")
-        input.use { source -> FileOutputStream(target).use { output -> source.copyTo(output) } }
-        StoredMedia("$MEDIA_DIRECTORY/$name", mimeType, target.length())
+        } catch (error: Exception) {
+            withContext(NonCancellable + Dispatchers.IO) { importedFile?.delete() }
+            throw error
+        }
     }
 
     fun file(relativePath: String): File = File(context.filesDir, relativePath)
