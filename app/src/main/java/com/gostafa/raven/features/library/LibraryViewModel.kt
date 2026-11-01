@@ -6,6 +6,11 @@ import com.gostafa.raven.core.data.RavenRepository
 import com.gostafa.raven.core.database.CardPreview
 import com.gostafa.raven.core.database.FolderSummary
 import com.gostafa.raven.core.settings.SettingsRepository
+import com.gostafa.raven.core.archive.FolderArchiveService
+import com.gostafa.raven.core.archive.ArchiveResult
+import com.gostafa.raven.core.archive.ImportMode
+import android.net.Uri
+import kotlinx.coroutines.flow.MutableStateFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -32,7 +37,26 @@ private fun <T> Flow<T>.asLibraryData(): Flow<LibraryData<T>> =
 class LibraryViewModel @Inject constructor(
     private val repository: RavenRepository,
     val settings: SettingsRepository,
+    private val archiveService: FolderArchiveService? = null,
 ) : ViewModel() {
+    val archiveBusy = MutableStateFlow(false)
+    val archiveResult = MutableStateFlow<ArchiveResult?>(null)
+    val archiveError = MutableStateFlow<String?>(null)
+    fun exportFolders(ids: List<String>, destination: Uri) = transfer { requireNotNull(archiveService).exportFolders(ids, destination) }
+    fun importFolders(source: Uri, mode: ImportMode) = transfer { requireNotNull(archiveService).importFolders(source, mode) }
+    private fun transfer(operation: suspend () -> ArchiveResult) {
+        if (archiveBusy.value) return
+        archiveBusy.value = true
+        archiveResult.value = null
+        archiveError.value = null
+        viewModelScope.launch {
+            try { archiveResult.value = operation() }
+            catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                archiveError.value = failure.message ?: "Unable to transfer archive"
+            } finally { archiveBusy.value = false }
+        }
+    }
     val folders: StateFlow<LibraryData<List<FolderSummary>>> = observeFolders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryData())
 

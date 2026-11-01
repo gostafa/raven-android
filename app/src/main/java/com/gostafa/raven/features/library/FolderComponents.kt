@@ -92,6 +92,7 @@ internal fun FolderTile(
     onDelete: () -> Unit,
     selectedTags: List<String>,
     onTagClick: (String) -> Unit,
+    onExport: (() -> Unit)? = null,
 ) {
     val outline = MaterialTheme.colorScheme.outline
     val rear = MaterialTheme.colorScheme.surfaceVariant
@@ -134,7 +135,7 @@ internal fun FolderTile(
             Column(Modifier.fillMaxWidth().heightIn(min = 236.dp).padding(start = 18.dp, top = 44.dp, end = 18.dp, bottom = 18.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(folder.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    OverflowMenu(label = stringResource(R.string.folder_actions, folder.name), onEdit = onEdit, onDelete = onDelete, horizontal = true)
+                    OverflowMenu(label = stringResource(R.string.folder_actions, folder.name), onEdit = onEdit, onDelete = onDelete, horizontal = true, onExport = onExport)
                 }
                 if (folder.description.isNotBlank()) {
                     Text(folder.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)

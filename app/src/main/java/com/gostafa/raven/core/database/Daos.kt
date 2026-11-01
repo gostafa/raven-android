@@ -29,6 +29,8 @@ private const val SEARCH_CARDS = "SELECT c.id, c.folderId, c.updatedAt, 0 AS rec
 
 @Dao
 interface CardDao {
+    @Query("SELECT * FROM cards WHERE folderId = :folderId ORDER BY createdAt, id")
+    suspend fun allInFolder(folderId: String): List<CardEntity>
     @Query(CARDS_IN_FOLDER)
     fun observeInFolder(folderId: String, now: Long): Flow<List<CardSummary>>
 
@@ -129,6 +131,8 @@ interface MediaDao {
 
 @Dao
 interface ReviewHistoryDao {
+    @Query("SELECT * FROM review_history WHERE partId = :partId ORDER BY reviewedAt, rowid")
+    suspend fun forPart(partId: String): List<ReviewHistoryEntity>
     @Query("""
         SELECT p.id AS partId, p.cardId, c.folderId, p.rememberThis,
                COUNT(h.id) AS reviewCount,
@@ -145,4 +149,12 @@ interface ReviewHistoryDao {
 
     @Query("SELECT * FROM review_history WHERE partId = :partId ORDER BY reviewedAt DESC")
     fun observeForPart(partId: String): Flow<List<ReviewHistoryEntity>>
+}
+
+@Dao
+interface ArchiveStateDao {
+    @Query("SELECT * FROM archive_states WHERE partId = :partId")
+    suspend fun get(partId: String): ArchiveStateEntity?
+    @Upsert
+    suspend fun upsert(state: ArchiveStateEntity)
 }

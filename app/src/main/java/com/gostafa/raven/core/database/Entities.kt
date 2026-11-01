@@ -92,6 +92,9 @@ data class ReviewHistoryEntity(
 )
 data class ReminderReceiptEntity(@PrimaryKey val partId: String, val handledDueAt: Long)
 
+@Entity(tableName = "archive_states", foreignKeys = [ForeignKey(entity = ContentPartEntity::class, parentColumns = ["id"], childColumns = ["partId"], onDelete = ForeignKey.CASCADE)])
+data class ArchiveStateEntity(@PrimaryKey val partId: String, val scheduleJson: String, val reviewsJson: String)
+
 data class ReminderOccurrence(val partId: String, val cardId: String, val dueAt: Long, val folderName: String)
 
 data class FolderSummary(

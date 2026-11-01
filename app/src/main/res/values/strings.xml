@@ -160,4 +160,19 @@
     <string name="previous_hint">Previous hint</string>
     <string name="next_hint">Next hint</string>
     <string name="hint_position">%1$d / %2$d</string>
+    <string name="import_folders">Import folders</string>
+    <string name="export_folders">Export folders</string>
+    <string name="archive_export_description">Save complete folders in one Raven ZIP file, including all cards, media, and review history.</string>
+    <string name="archive_import_description">Open a Raven ZIP file to add copies of its folders to your library.</string>
+    <string name="archive_fresh">Start from zero</string>
+    <string name="archive_resume">Continue from last review</string>
+    <string name="archive_fresh_description">Reset review progress and treat every imported card as new.</string>
+    <string name="archive_resume_description">Keep saved review history and due dates. Cards already due are ready to review.</string>
+    <string name="archive_select_all">Select all</string>
+    <string name="archive_clear_selection">Clear selection</string>
+    <string name="archive_choose_save">Choose save location</string>
+    <string name="archive_choose_file">Choose file</string>
+    <string name="archive_transferring">Transferring folders…</string>
+    <string name="archive_success">Transferred %1$d folders, %2$d cards, and %3$d media files.</string>
+    <string name="archive_failed">Transfer failed: %1$s</string>
 </resources>

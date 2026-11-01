@@ -57,6 +57,7 @@ fun LibraryScreen(
     val folders = state.value.orEmpty()
     val gridState = rememberLazyGridState()
     var creatingFolder by rememberSaveable { mutableStateOf(false) }
+    var exportFolderId by rememberSaveable { mutableStateOf<String?>(null) }
     var editingFolderId by rememberSaveable { mutableStateOf<String?>(null) }
     var deletingFolderId by rememberSaveable { mutableStateOf<String?>(null) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
@@ -113,6 +114,7 @@ fun LibraryScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             reminderOffer()
+            ArchiveControls(viewModel, folders, exportFolderId, onExportHandled = { exportFolderId = null })
             if (selectedTags.isNotEmpty()) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
                     Text(stringResource(R.string.filter_tags), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -142,6 +144,7 @@ fun LibraryScreen(
                             onOpen = { onOpenFolder(folder.id) },
                             onEdit = { editingFolderId = folder.id },
                             onDelete = { deletingFolderId = folder.id },
+                            onExport = { exportFolderId = folder.id },
                             selectedTags = selectedTags,
                             onTagClick = toggleTag,
                         )

@@ -1,0 +1,64 @@
+
+// Appended only to an isolated checkout by verify.py; uses the pinned desktop test helpers.
+func TestAndroidArchiveCompatibility(t *testing.T) {
+    if target := os.Getenv("RAVEN_ARCHIVE_FIXTURE"); target != "" {
+        fixtureStore, _, filename := archiveFixture(t)
+        data, err := os.ReadFile(filename)
+        if err != nil { t.Fatal(err) }
+        if err = os.WriteFile(target, data, 0600); err != nil { t.Fatal(err) }
+        now := time.UnixMilli(1700000000000).UTC()
+        state, log, err := fixtureStore.state.initializeSchedule(now)
+        if err != nil { t.Fatal(err) }
+        t.Logf("initial schedule=%s log=%s", state, log)
+    }
+    filename := os.Getenv("RAVEN_ARCHIVE_INPUT")
+    if filename == "" { return }
+    state := openTestStore(t)
+    store := &Store{state: state}
+    for _, mode := range []string{archive.Resume, archive.Fresh} {
+        err := archivezip.New().Read(filename, func(manifest string, open archiveports.OpenMedia) error {
+            document, err := archive.Decode(manifest)
+            if err != nil { return err }
+            ids, err := store.ImportFolderCopies(manifest, mode, open)
+            if err != nil { return err }
+            if len(ids) != len(document.Folders) { t.Fatal("folder count mismatch") }
+            return store.SnapshotFolders(ids, func(imported string, importedOpen archiveports.OpenMedia) error {
+                after, err := archive.Decode(imported)
+                if err != nil { return err }
+                for fi, folder := range after.Folders {
+                    before := document.Folders[fi]
+                    if folder.Metadata.Title != before.Metadata.Title || folder.Metadata.Description != before.Metadata.Description || !reflect.DeepEqual(folder.Metadata.Tags, before.Metadata.Tags) || len(folder.Cards) != len(before.Cards) { t.Fatal("folder metadata mismatch") }
+                    originals := map[int64]cardapi.Card{}
+                    for _, card := range before.Cards { originals[card.CreatedAt] = card }
+                    for _, card := range folder.Cards {
+                        original, ok := originals[card.CreatedAt]
+                        if !ok { t.Fatal("card creation time changed") }
+                        oldItems, err := contentapi.Decode[[]contentapi.Item](original.Items)
+                        if err != nil { t.Fatal(err) }
+                        items, err := contentapi.Decode[[]contentapi.Item](card.Items)
+                        if err != nil || len(items) != len(oldItems) { t.Fatal("item count", err) }
+                        for i, item := range items {
+                            old := oldItems[i]
+                            if item.ID == old.ID || item.CardID != card.ID || item.FolderID != folder.Metadata.ID || item.Position != old.Position || item.Kind != old.Kind || item.Text != old.Text || item.Hint != old.Hint || item.OriginalName != old.OriginalName || item.MIMEType != old.MIMEType || item.ByteSize != old.ByteSize || item.LastNotifiedDue != 0 { t.Fatal("item metadata mismatch") }
+                            if mode == archive.Resume && (!reflect.DeepEqual(contentapi.Schedule(item.Schedule), contentapi.Schedule(old.Schedule)) || !reflect.DeepEqual(contentapi.Reviews(item.Reviews), contentapi.Reviews(old.Reviews))) { t.Fatal("resume lost schedule/history") }
+                            if item.RelativePath != "" {
+                                source, err := open(old.RelativePath)
+                                if err != nil { t.Fatal(err) }
+                                target, err := importedOpen(item.RelativePath)
+                                if err != nil { t.Fatal(err) }
+                                a, e1 := io.ReadAll(source); b, e2 := io.ReadAll(target)
+                                source.Close(); target.Close()
+                                if e1 != nil || e2 != nil || !bytes.Equal(a, b) { t.Fatal("media bytes changed") }
+                            }
+                        }
+                    }
+                }
+                if mode == archive.Resume {
+                    if output := os.Getenv("RAVEN_ARCHIVE_OUTPUT"); output != "" { return archivezip.New().Write(output, imported, importedOpen) }
+                }
+                return nil
+            })
+        })
+        if err != nil { t.Fatalf("%s interoperability: %v", mode, err) }
+    }
+}

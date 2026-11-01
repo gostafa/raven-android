@@ -17,12 +17,19 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS archive_states (partId TEXT NOT NULL, scheduleJson TEXT NOT NULL, reviewsJson TEXT NOT NULL, PRIMARY KEY(partId), FOREIGN KEY(partId) REFERENCES content_parts(id) ON UPDATE NO ACTION ON DELETE CASCADE)")
+    }
+}
+
 @Database(
-    entities = [FolderEntity::class, CardEntity::class, ContentPartEntity::class, MediaEntity::class, ReviewHistoryEntity::class, ReminderReceiptEntity::class],
-    version = 3,
+    entities = [FolderEntity::class, CardEntity::class, ContentPartEntity::class, MediaEntity::class, ReviewHistoryEntity::class, ReminderReceiptEntity::class, ArchiveStateEntity::class],
+    version = 4,
     exportSchema = false,
 )
 abstract class RavenDatabase : RoomDatabase() {
+    abstract fun archiveStateDao(): ArchiveStateDao
     abstract fun reminderDao(): ReminderDao
     abstract fun folderDao(): FolderDao
     abstract fun cardDao(): CardDao

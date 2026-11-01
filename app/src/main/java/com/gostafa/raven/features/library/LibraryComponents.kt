@@ -91,7 +91,7 @@ internal fun BottomCreateButton(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-internal fun OverflowMenu(label: String, onEdit: (() -> Unit)? = null, onDelete: () -> Unit, horizontal: Boolean = false) {
+internal fun OverflowMenu(label: String, onEdit: (() -> Unit)? = null, onDelete: () -> Unit, horizontal: Boolean = false, onExport: (() -> Unit)? = null) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -102,6 +102,7 @@ internal fun OverflowMenu(label: String, onEdit: (() -> Unit)? = null, onDelete:
             onDismissRequest = { expanded = false },
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ) {
+            if (onExport != null) DropdownMenuItem(text = { Text(stringResource(R.string.export_folders)) }, onClick = { expanded = false; onExport() })
             if (onEdit != null) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.edit)) },

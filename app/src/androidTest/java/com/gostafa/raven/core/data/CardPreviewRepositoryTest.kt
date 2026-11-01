@@ -78,10 +78,11 @@ class CardPreviewRepositoryTest {
             db.reminderDao().acknowledge(listOf(ReminderReceiptEntity(part.id, saved.dueAt)))
             db.close()
             SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READWRITE).use {
+                it.execSQL("DROP TABLE archive_states")
                 removeOriginalNameForMigration(it)
                 it.version = 2
             }
-            db = Room.databaseBuilder(context, RavenDatabase::class.java, name).addMigrations(MIGRATION_2_3).build()
+            db = Room.databaseBuilder(context, RavenDatabase::class.java, name).addMigrations(MIGRATION_2_3, MIGRATION_3_4).build()
             repo = repository(db)
             assertEquals(saved, db.contentPartDao().get(part.id))
             assertNull(repo.observeCardPreviews(folder).first().single().parts.single().originalName)

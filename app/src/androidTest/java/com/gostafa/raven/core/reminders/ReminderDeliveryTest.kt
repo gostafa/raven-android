@@ -28,6 +28,12 @@ class ReminderDeliveryTest {
         if (android.os.Build.VERSION.SDK_INT >= 33) {
             InstrumentationRegistry.getInstrumentation().uiAutomation.grantRuntimePermission(context.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
         }
+        // The application's recovery worker uses the on-disk DB and would cancel
+        // notifications belonging to this test's separate in-memory DB.
+        val work = androidx.work.WorkManager.getInstance(context)
+        work.cancelUniqueWork("review-reminder-recovery").result.get()
+        work.cancelUniqueWork("review-reminder-reconcile").result.get()
+        (context.applicationContext as com.gostafa.raven.RavenApplication).reminders.reconcile()
         val db = Room.inMemoryDatabaseBuilder(context, RavenDatabase::class.java).build()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val file = File(context.cacheDir, "${UUID.randomUUID()}.preferences_pb")
@@ -43,7 +49,15 @@ class ReminderDeliveryTest {
             repo.saveCard(folder, null, listOf(PartDraft(text = "C")))
             cardIds.addAll(repo.observeCards(folder).first().map { it.id })
             reminders.reconcile()
-            val notices = manager.activeNotifications.filter { it.tag in cardIds.map { id -> "review/$id" } }
+            // NotificationManager publishes asynchronously; wait for delivery before checking it.
+            val notices = withTimeout(5_000) {
+                var posted = manager.activeNotifications.filter { it.tag in cardIds.map { id -> "review/$id" } }
+                while (posted.size != 2) {
+                    delay(50)
+                    posted = manager.activeNotifications.filter { it.tag in cardIds.map { id -> "review/$id" } }
+                }
+                posted
+            }
             assertEquals(2, notices.size)
             val channel = manager.getNotificationChannel(ReminderCoordinator.CHANNEL_ID)
             assertEquals("android.resource://${context.packageName}/raw/raven", channel.sound.toString())
@@ -56,6 +70,7 @@ class ReminderDeliveryTest {
             db.contentPartDao().upsert(part.copy(dueAt = part.dueAt - 1))
             active.show(part.cardId)
             reminders.reconcile()
+            withTimeout(5_000) { while (manager.activeNotifications.any { it.tag == "review/${part.cardId}" }) delay(50) }
             assertTrue(manager.activeNotifications.none { it.tag == "review/${part.cardId}" })
             assertTrue(db.reminderDao().pendingDue(Long.MAX_VALUE).isEmpty())
             active.show(null)
@@ -63,6 +78,7 @@ class ReminderDeliveryTest {
             assertTrue(manager.activeNotifications.none { it.tag == "review/${part.cardId}" })
             settings.setRemindersEnabled(false)
             reminders.reconcile()
+            withTimeout(5_000) { while (manager.activeNotifications.any { it.tag in cardIds.map { id -> "review/$id" } }) delay(50) }
             assertTrue(manager.activeNotifications.none { it.tag in cardIds.map { id -> "review/$id" } })
         } finally {
             cardIds.forEach { manager.cancel("review/$it", 1) }

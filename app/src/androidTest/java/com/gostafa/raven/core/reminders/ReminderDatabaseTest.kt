@@ -87,10 +87,11 @@ class ReminderDatabaseTest {
             // v1 has exactly the same existing tables; only the receipt table is new in v2.
             SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READWRITE).use { legacy ->
                 legacy.execSQL("DROP TABLE reminder_receipts")
+                legacy.execSQL("DROP TABLE archive_states")
                 removeOriginalNameForMigration(legacy)
                 legacy.version = 1
             }
-            db = Room.databaseBuilder(context, RavenDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+            db = Room.databaseBuilder(context, RavenDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
             repo = repository(db)
             assertEquals(before, db.contentPartDao().get(part))
             assertEquals("Keep me", db.folderDao().get(folder)!!.description)
@@ -99,7 +100,7 @@ class ReminderDatabaseTest {
             assertEquals("Hello", repo.cardWithParts(card)!!.parts.single().text)
             db.reminderDao().acknowledge(listOf(ReminderReceiptEntity(part, before.dueAt)))
             db.close()
-            db = Room.databaseBuilder(context, RavenDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+            db = Room.databaseBuilder(context, RavenDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
             assertTrue(db.reminderDao().pendingDue(Long.MAX_VALUE).isEmpty())
         } finally { db.close(); context.deleteDatabase(name) }
     }

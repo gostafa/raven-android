@@ -172,4 +172,19 @@
     <string name="previous_hint">التلميح السابق</string>
     <string name="next_hint">التلميح التالي</string>
     <string name="hint_position">%1$d / %2$d</string>
+    <string name="import_folders">استيراد مجلدات</string>
+    <string name="export_folders">تصدير مجلدات</string>
+    <string name="archive_export_description">احفظ المجلدات كاملة في ملف Raven ZIP واحد، بما يشمل البطاقات والوسائط وسجل المراجعة.</string>
+    <string name="archive_import_description">افتح ملف Raven ZIP لإضافة نسخ من مجلداته إلى مكتبتك.</string>
+    <string name="archive_fresh">البدء من الصفر</string>
+    <string name="archive_resume">المتابعة من آخر مراجعة</string>
+    <string name="archive_fresh_description">إعادة ضبط تقدم المراجعة والتعامل مع كل بطاقة مستوردة كبطاقة جديدة.</string>
+    <string name="archive_resume_description">الاحتفاظ بسجل المراجعة ومواعيدها. البطاقات المستحقة جاهزة للمراجعة.</string>
+    <string name="archive_select_all">تحديد الكل</string>
+    <string name="archive_clear_selection">إلغاء التحديد</string>
+    <string name="archive_choose_save">اختيار مكان الحفظ</string>
+    <string name="archive_choose_file">اختيار ملف</string>
+    <string name="archive_transferring">جارٍ نقل المجلدات…</string>
+    <string name="archive_success">تم نقل %1$d مجلدات و%2$d بطاقات و%3$d ملفات وسائط.</string>
+    <string name="archive_failed">فشل النقل: %1$s</string>
 </resources>

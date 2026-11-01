@@ -1,6 +1,12 @@
 package com.gostafa.raven.core.data
 
 import androidx.room.withTransaction
+import com.gostafa.raven.core.archive.portable
+import com.gostafa.raven.core.archive.archiveJson
+import com.gostafa.raven.core.archive.PortableReview
+import com.gostafa.raven.core.archive.PortableSchedule
+import com.gostafa.raven.core.archive.PortableLog
+import com.gostafa.raven.core.archive.timestamp
 import com.gostafa.raven.core.database.CardEntity
 import com.gostafa.raven.core.database.CardSummary
 import com.gostafa.raven.core.database.CardPreview
@@ -260,6 +266,17 @@ class RoomRavenRepository @Inject constructor(
                     stateAfterJson = Json.encodeToString(after),
                 ),
             )
+            database.archiveStateDao().get(partId)?.let { portable ->
+                val reviews = archiveJson.decodeFromString<List<PortableReview>>(portable.reviewsJson)
+                val previous = archiveJson.decodeFromString<PortableSchedule>(portable.scheduleJson)
+                val appended = reviews + PortableReview(PortableLog(previous.lastReview, timestamp(now), rating.value,
+                    previous.scheduledDays, previous.stability, previous.difficulty, previous.remainingSteps, previous.state))
+                val next = after.portable().copy(reps = previous.reps + 1u, lapses = previous.lapses + (after.lapses - before.lapses).coerceAtLeast(0).toULong())
+                database.archiveStateDao().upsert(portable.copy(
+                    scheduleJson = archiveJson.encodeToString(next),
+                    reviewsJson = archiveJson.encodeToString(appended),
+                ))
+            }
         }
         reminders.changed()
     }
