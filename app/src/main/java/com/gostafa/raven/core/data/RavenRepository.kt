@@ -3,6 +3,7 @@ package com.gostafa.raven.core.data
 import androidx.room.withTransaction
 import com.gostafa.raven.core.database.CardEntity
 import com.gostafa.raven.core.database.CardSummary
+import com.gostafa.raven.core.database.CardPreview
 import com.gostafa.raven.core.database.CardDao
 import com.gostafa.raven.core.database.ContentPartDao
 import com.gostafa.raven.core.database.ContentPartEntity
@@ -43,6 +44,8 @@ interface RavenRepository {
     fun observeFolders(): Flow<List<FolderSummary>>
     fun observeCards(folderId: String): Flow<List<CardSummary>>
     fun searchCards(query: String): Flow<List<CardSummary>>
+    fun observeCardPreviews(folderId: String): Flow<List<CardPreview>>
+    fun searchCardPreviews(query: String): Flow<List<CardPreview>>
     suspend fun saveFolder(id: String?, name: String, description: String, tags: List<String>): String
     suspend fun deleteFolder(id: String)
     suspend fun saveCard(folderId: String, cardId: String?, drafts: List<PartDraft>)
@@ -103,6 +106,18 @@ class RoomRavenRepository @Inject constructor(
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun searchCards(query: String) = dueClock().flatMapLatest { cards.search(query, it) }.withRecall()
 
+    private fun Flow<List<CardPreview>>.withPreviewRecall(): Flow<List<CardPreview>> =
+        combine(this, history.observeRecall()) { previews, recall ->
+            val percentages = recall.groupBy { it.cardId }.mapValues { cardRecallPercent(it.value) }
+            previews.map { it.copy(summary = it.summary.copy(recallPercent = percentages[it.summary.id] ?: 0), parts = it.parts.sortedBy { part -> part.orderIndex }) }
+        }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    override fun observeCardPreviews(folderId: String) = dueClock().flatMapLatest { cards.observePreviewsInFolder(folderId, it) }.withPreviewRecall()
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    override fun searchCardPreviews(query: String) = dueClock().flatMapLatest { cards.searchPreviews(query, it) }.withPreviewRecall()
+
     override suspend fun saveFolder(id: String?, name: String, description: String, tags: List<String>): String {
         require(name.isNotBlank()) { "A folder must have a name" }
         val now = System.currentTimeMillis()
@@ -161,6 +176,7 @@ class RoomRavenRepository @Inject constructor(
                     type = draft.type.name,
                     text = draft.text,
                     mediaPath = mediaPath,
+                    originalName = draft.originalName ?: old?.originalName?.takeIf { old.mediaPath == mediaPath },
                     mimeType = draft.mimeType ?: old?.mimeType,
                     orderIndex = index,
                     rememberThis = draft.rememberThis,

@@ -102,6 +102,8 @@ private class ReviewRepository : RavenRepository {
     override fun observeFolders(): Flow<List<FolderSummary>> = flowOf(emptyList())
     override fun observeCards(folderId: String): Flow<List<CardSummary>> = flowOf(emptyList())
     override fun searchCards(query: String): Flow<List<CardSummary>> = flowOf(emptyList())
+    override fun observeCardPreviews(folderId: String): Flow<List<com.gostafa.raven.core.database.CardPreview>> = flowOf(emptyList())
+    override fun searchCardPreviews(query: String): Flow<List<com.gostafa.raven.core.database.CardPreview>> = flowOf(emptyList())
     override suspend fun saveFolder(id: String?, name: String, description: String, tags: List<String>) = "f"
     override suspend fun deleteFolder(id: String) = Unit
     override suspend fun saveCard(folderId: String, cardId: String?, drafts: List<PartDraft>) = Unit

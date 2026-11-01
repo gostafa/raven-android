@@ -31,6 +31,7 @@ data class PartDraft(
     val mediaPath: String? = null,
     val mimeType: String? = null,
     val rememberThis: Boolean = true,
+    val originalName: String? = null,
 )
 
 data class CardWithParts(

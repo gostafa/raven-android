@@ -30,7 +30,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gostafa.raven.R
-import com.gostafa.raven.core.database.CardSummary
+import com.gostafa.raven.core.database.CardPreview
 
 @Composable
 fun FolderScreen(
@@ -46,7 +46,7 @@ fun FolderScreen(
     val folders by foldersFlow.collectAsStateWithLifecycle(initialValue = LibraryData())
     val folder = folders.value?.firstOrNull { it.id == folderId }
     val cardsFlow = remember(viewModel, folderId) { viewModel.observeCards(folderId) }
-    val cards by cardsFlow.collectAsStateWithLifecycle(initialValue = LibraryData<List<CardSummary>>())
+    val cards by cardsFlow.collectAsStateWithLifecycle(initialValue = LibraryData<List<CardPreview>>())
     val listState = rememberLazyListState()
     var editingFolder by rememberSaveable(folderId) { mutableStateOf(false) }
     var deletingFolder by rememberSaveable(folderId) { mutableStateOf(false) }
@@ -117,12 +117,12 @@ fun FolderScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    else -> items(cards.value.orEmpty(), key = { it.id }) { card ->
+                    else -> items(cards.value.orEmpty(), key = { it.summary.id }) { card ->
                         CardRow(
                             card = card,
-                            onEdit = { onEditCard(folderId, card.id) },
-                            onDelete = { deletingCardId = card.id },
-                            onPractice = { onPracticeCard(card.id) },
+                            onEdit = { onEditCard(folderId, card.summary.id) },
+                            onDelete = { deletingCardId = card.summary.id },
+                            onPractice = { onPracticeCard(card.summary.id) },
                         )
                     }
                 }

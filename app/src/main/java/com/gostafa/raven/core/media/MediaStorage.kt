@@ -2,6 +2,7 @@ package com.gostafa.raven.core.media
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -14,7 +15,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 
-data class StoredMedia(val relativePath: String, val mimeType: String, val byteSize: Long)
+data class StoredMedia(val relativePath: String, val mimeType: String, val byteSize: Long, val originalName: String? = null)
 
 class MediaStorage @Inject constructor(@ApplicationContext private val context: Context) {
     suspend fun import(uri: Uri, expectedType: String): StoredMedia {
@@ -47,7 +48,12 @@ class MediaStorage @Inject constructor(@ApplicationContext private val context: 
                     }
                 }
                 require(target.length() > 0) { "Selected file is empty" }
-                StoredMedia("$MEDIA_DIRECTORY/$name", mimeType, target.length())
+                val originalName = if (uri.scheme == "file") uri.lastPathSegment else runCatching {
+                    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) cursor.getString(0) else null
+                    }
+                }.getOrNull()
+                StoredMedia("$MEDIA_DIRECTORY/$name", mimeType, target.length(), originalName?.takeIf { it.isNotBlank() })
             }
         } catch (error: Exception) {
             withContext(NonCancellable + Dispatchers.IO) { importedFile?.delete() }

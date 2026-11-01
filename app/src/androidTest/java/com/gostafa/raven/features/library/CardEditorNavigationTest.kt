@@ -68,7 +68,8 @@ class CardEditorNavigationTest {
             compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() &&
                 compose.onAllNodesWithText(label(R.string.create_card)).fetchSemanticsNodes().isEmpty()
         }
-        compose.onNodeWithText(text).performScrollTo().performClick()
+        compose.onNodeWithContentDescription(label(R.string.card_actions)).performScrollTo().performClick()
+        compose.onNodeWithText(label(R.string.edit), substring = false).performClick()
         compose.waitUntil(10_000) { compose.onAllNodes(hasSetTextAction() and hasText(text)).fetchSemanticsNodes().isNotEmpty() }
         compose.onNode(hasSetTextAction() and hasText(text)).performTextReplacement("Unfinished edit")
         hideKeyboard()
@@ -82,7 +83,9 @@ class CardEditorNavigationTest {
         hideKeyboard()
         val result = hasText(text) and !hasSetTextAction()
         compose.waitUntil(10_000) { compose.onAllNodes(result).fetchSemanticsNodes().isNotEmpty() }
-        compose.onNode(result).performScrollTo().assertIsDisplayed().performClick()
+        compose.onNode(result).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription(label(R.string.card_actions)).performScrollTo().performClick()
+        compose.onNodeWithText(label(R.string.edit), substring = false).performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithText(label(R.string.save_changes)).fetchSemanticsNodes().isNotEmpty() }
         val editedField = hasSetTextAction() and hasText(text) and hasText(label(R.string.text_part))
         compose.waitUntil(10_000) { compose.onAllNodes(editedField).fetchSemanticsNodes().isNotEmpty() }

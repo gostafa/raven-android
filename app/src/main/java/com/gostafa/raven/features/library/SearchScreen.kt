@@ -35,7 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gostafa.raven.R
-import com.gostafa.raven.core.database.CardSummary
+import com.gostafa.raven.core.database.CardPreview
 
 @Composable
 fun SearchScreen(
@@ -85,9 +85,9 @@ fun SearchScreen(
                         folderNames = folders.value.orEmpty().associate { it.id to it.name },
                         onEdit = { card ->
                             focusManager.clearFocus()
-                            onEditCard(card.folderId, card.id)
+                            onEditCard(card.summary.folderId, card.summary.id)
                         },
-                        onDelete = { card -> focusManager.clearFocus(); deletingCardId = card.id },
+                        onDelete = { card -> focusManager.clearFocus(); deletingCardId = card.summary.id },
                         onPractice = { id -> focusManager.clearFocus(); onPracticeCard(id) },
                     )
                 }
@@ -108,12 +108,12 @@ private fun SearchResults(
     query: String,
     viewModel: LibraryViewModel,
     folderNames: Map<String, String>,
-    onEdit: (CardSummary) -> Unit,
-    onDelete: (CardSummary) -> Unit,
+    onEdit: (CardPreview) -> Unit,
+    onDelete: (CardPreview) -> Unit,
     onPractice: (String) -> Unit,
 ) {
     val resultsFlow = remember(viewModel, query) { viewModel.searchCards(query) }
-    val state by resultsFlow.collectAsStateWithLifecycle(initialValue = LibraryData<List<CardSummary>>())
+    val state by resultsFlow.collectAsStateWithLifecycle(initialValue = LibraryData<List<CardPreview>>())
     val listState = rememberLazyListState()
     when {
         state.failed -> LibraryMessage(stringResource(R.string.load_failed))
@@ -125,13 +125,13 @@ private fun SearchResults(
             contentPadding = PaddingValues(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            items(state.value.orEmpty(), key = { it.id }) { card ->
+            items(state.value.orEmpty(), key = { it.summary.id }) { card ->
                 CardRow(
                     card = card,
-                    folderName = folderNames[card.folderId] ?: stringResource(R.string.folder),
+                    folderName = folderNames[card.summary.folderId] ?: stringResource(R.string.folder),
                     onEdit = { onEdit(card) },
                     onDelete = { onDelete(card) },
-                    onPractice = { onPractice(card.id) },
+                    onPractice = { onPractice(card.summary.id) },
                 )
             }
         }

@@ -1,6 +1,5 @@
 package com.gostafa.raven.features.library
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,10 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -41,13 +37,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.gostafa.raven.R
-import com.gostafa.raven.core.database.CardSummary
 
 @Composable
 internal fun LibraryHeader(
@@ -118,61 +112,6 @@ internal fun OverflowMenu(label: String, onEdit: (() -> Unit)? = null, onDelete:
                 text = { Text(stringResource(R.string.delete)) },
                 onClick = { expanded = false; onDelete() },
             )
-        }
-    }
-}
-
-@Composable
-internal fun CardRow(
-    card: CardSummary,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onPractice: () -> Unit,
-    folderName: String? = null,
-) {
-    Card(
-        onClick = onEdit,
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-    ) {
-        Column(Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 8.dp, bottom = 8.dp)) {
-            if (folderName != null) {
-                Text(
-                    folderName,
-                    modifier = Modifier.padding(bottom = 6.dp, end = 8.dp),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Text(
-                card.preview.ifBlank { stringResource(R.string.media_card) },
-                modifier = Modifier.padding(end = 8.dp),
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
-                    Text(stringResource(R.string.card_recall_percent, card.recallPercent), style = MaterialTheme.typography.labelMedium)
-                    Text(pluralStringResource(R.plurals.part_count, card.partCount, card.partCount), style = MaterialTheme.typography.bodySmall)
-                    Text(
-                        stringResource(R.string.due_count, card.dueCount),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(onClick = onPractice) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.practice_card))
-                }
-                OverflowMenu(label = stringResource(R.string.card_actions), onDelete = onDelete)
-            }
         }
     }
 }

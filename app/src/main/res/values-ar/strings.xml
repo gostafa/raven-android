@@ -161,4 +161,12 @@
     <string name="showing_up">خطوة أخرى في رحلة التذكّر</string>
     <string name="all_caught_up">أنجزت كل المراجعات</string>
     <string name="done">تم</string>
+    <string name="open_card_part">فتح الجزء %2$d من نوع %1$s</string>
+    <string name="play_card_audio">تشغيل %1$s</string>
+    <string name="pause_card_audio">إيقاف %1$s مؤقتًا</string>
+    <string name="seek_card_audio">تغيير موضع التشغيل في %1$s</string>
+    <string name="preview_audio_times">%1$s من %2$s</string>
+    <string name="preview_playback_failed">تعذر التشغيل. اضغط للمحاولة مجددًا.</string>
+    <string name="preview_loading">جارٍ التحميل…</string>
+    <string name="preview_playing">قيد التشغيل</string>
 </resources>

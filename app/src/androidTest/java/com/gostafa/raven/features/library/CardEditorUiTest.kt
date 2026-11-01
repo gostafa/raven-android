@@ -255,7 +255,13 @@ class CardEditorUiTest {
         temporaryFiles += source
         compose.runOnIdle { vm.importMedia(Uri.fromFile(source), PartType.AUDIO) }
         compose.waitUntil(5_000) { !vm.state.value.importing && vm.state.value.parts.size == 2 }
-        compose.runOnIdle { assertFalse(vm.state.value.importFailed); vm.discard() }
+        compose.runOnIdle {
+            assertFalse(vm.state.value.importFailed)
+            assertEquals(source.name, vm.state.value.parts.last().originalName)
+            val restored = editor(handle = SavedStateHandle(mapOf("folderId" to folderId, "card_editor_draft" to kotlinx.serialization.json.Json.encodeToString(CardEditorDraft.serializer(), vm.state.value.draft!!))))
+            assertEquals(source.name, restored.state.value.parts.last().originalName)
+            vm.discard()
+        }
         compose.waitUntil { vm.state.value.closed }
     }
 

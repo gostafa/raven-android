@@ -3,7 +3,7 @@ package com.gostafa.raven.features.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gostafa.raven.core.data.RavenRepository
-import com.gostafa.raven.core.database.CardSummary
+import com.gostafa.raven.core.database.CardPreview
 import com.gostafa.raven.core.database.FolderSummary
 import com.gostafa.raven.core.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,11 +38,11 @@ class LibraryViewModel @Inject constructor(
 
     fun observeFolders(): Flow<LibraryData<List<FolderSummary>>> = repository.observeFolders().asLibraryData()
 
-    fun observeCards(folderId: String): Flow<LibraryData<List<CardSummary>>> =
-        repository.observeCards(folderId).asLibraryData()
+    fun observeCards(folderId: String): Flow<LibraryData<List<CardPreview>>> =
+        repository.observeCardPreviews(folderId).asLibraryData()
 
-    fun searchCards(query: String): Flow<LibraryData<List<CardSummary>>> =
-        repository.searchCards(query.trim()).asLibraryData()
+    fun searchCards(query: String): Flow<LibraryData<List<CardPreview>>> =
+        repository.searchCardPreviews(query.trim()).asLibraryData()
 
     suspend fun saveFolder(id: String?, name: String, description: String, tags: List<String>): String =
         repository.saveFolder(id, name, description, tags)

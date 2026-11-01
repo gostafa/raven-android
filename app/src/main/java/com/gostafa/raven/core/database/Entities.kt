@@ -1,6 +1,8 @@
 package com.gostafa.raven.core.database
 
 import androidx.room.Entity
+import androidx.room.Embedded
+import androidx.room.Relation
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.Ignore
@@ -51,6 +53,7 @@ data class ContentPartEntity(
     val reviewCount: Int = 0,
     val createdAt: Long,
     val updatedAt: Long,
+    val originalName: String? = null,
 ) {
     fun fsrsState(): FsrsState = Json.decodeFromString(fsrsStateJson)
 }
@@ -113,4 +116,10 @@ data class CardSummary(
     val partCount: Int,
     val dueCount: Int,
     val recallPercent: Int = 0,
+)
+
+/** Room fetches related parts in batches; consumers sort by orderIndex. */
+data class CardPreview(
+    @Embedded val summary: CardSummary,
+    @Relation(parentColumn = "id", entityColumn = "cardId") val parts: List<ContentPartEntity>,
 )

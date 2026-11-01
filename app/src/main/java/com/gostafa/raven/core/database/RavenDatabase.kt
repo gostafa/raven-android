@@ -11,9 +11,15 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE content_parts ADD COLUMN originalName TEXT")
+    }
+}
+
 @Database(
     entities = [FolderEntity::class, CardEntity::class, ContentPartEntity::class, MediaEntity::class, ReviewHistoryEntity::class, ReminderReceiptEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class RavenDatabase : RoomDatabase() {

@@ -81,7 +81,7 @@ internal class CardEditorViewModel @Inject constructor(
                     .firstOrNull { it.id == (content?.card?.folderId ?: folderId) }
                 checkNotNull(folder)
                 val parts = content?.parts?.map { part ->
-                    PartDraft(part.id, PartType.valueOf(part.type), part.text, part.mediaPath, part.mimeType, part.rememberThis)
+                    PartDraft(part.id, PartType.valueOf(part.type), part.text, part.mediaPath, part.mimeType, part.rememberThis, part.originalName)
                 } ?: listOf(PartDraft(id = newId()))
                 val draft = CardEditorDraft(parts, parts, folderName = folder.name)
                 mutableState.value = CardEditorState(draft = draft, loading = false,
@@ -149,7 +149,7 @@ internal class CardEditorViewModel @Inject constructor(
                 change { it.copy(importedPaths = it.importedPaths + stored.relativePath) }
                 repository.saveMedia(stored.relativePath, stored.mimeType, stored.byteSize)
                 if (state.value.closed) return@launch
-                val part = PartDraft(id = newId(), type = type, mediaPath = stored.relativePath, mimeType = stored.mimeType)
+                val part = PartDraft(id = newId(), type = type, mediaPath = stored.relativePath, mimeType = stored.mimeType, originalName = stored.originalName)
                 change { it.copy(parts = it.parts + part) }
                 attached = true
                 focus(part.id)
